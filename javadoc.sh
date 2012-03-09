@@ -1,0 +1,1 @@
+/usr/lib/jvm/java-7-openjdk-amd64/jre/../bin/javadoc -J-Xmx1024m -J-Xms168m "-J-Xms168m -J-Xmx1024m -J-XX:PermSize=128m -J-XX:NewSize=64m" @options @packages
