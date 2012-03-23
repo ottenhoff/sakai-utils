@@ -1,0 +1,9 @@
+This is a simple PHP utility to export a Sakai filesystem to a series of files. Sakai stores filenames as 36-character unique ids in directories of the format 2012/01/31/xxxxxxxxxxx.
+
+*Requirements:*
+ 
+   PHP 5.1, mysqli support
+
+*Usage:*
+
+  php -q export-content-to-files.php sakai_database /sakai/assetstore  /tmp/destination
