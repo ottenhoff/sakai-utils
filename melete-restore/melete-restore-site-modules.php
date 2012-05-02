@@ -46,7 +46,7 @@ while ($row = $res->fetch_row() ) {
     $z[] = $r;
   }
 
-  $tail[] = "INSERT INTO melete_course_module (" . implode (",", $fields) . ") VALUES ('" . implode ("','", $z) . "');";
+  $tail[] = "INSERT INTO melete_course_module (" . implode (",", $fields) . ") VALUES (\"" . implode ("\",\"", $z) . "\");";
 }
 
 // now get the melete_modules data
@@ -58,13 +58,13 @@ foreach ($modules AS $module) {
         $fields[] = $finfo->name;
     }
 
-    $z = array();
     while ($row = $res->fetch_row() ) {
+        $z = array();
          foreach ($row AS $r) {
              $z[] = $conn->real_escape_string ($r);
          }
 
-         $out[] = "INSERT INTO melete_module (" . implode (",", $fields) . ") VALUES ('" . implode ("','", $z) . "');";
+         $out[] = "INSERT INTO melete_module (" . implode (",", $fields) . ") VALUES (\"" . implode ("\",\"", $z) . "\");";
     }
 
     // now get the sections
@@ -75,18 +75,41 @@ foreach ($modules AS $module) {
         $fields[] = $finfo->name;
     }
 
-    $z = array();
     while ($row = $res->fetch_row() ) {
+        $z = array();
          $sections[] = $row[0];
 
          foreach ($row AS $r) {
              $z[] = $conn->real_escape_string ($r);
          }
 
-         $out[] = "INSERT INTO melete_section (" . implode (",", $fields) . ") VALUES ('" . implode ("','", $z) . "');";
+         $tmp = "INSERT INTO melete_section (" . implode (",", $fields) . ") VALUES (\"" . implode ("\",\"", $z) . "\");";
+         $tmp = str_replace ('"0"', 0, $tmp);
+         $tmp = str_replace ('"1"', 1, $tmp);
+         $tmp = str_replace ('""', 'NULL', $tmp);
+         $out[] = $tmp;
     }
 }
 
+// get the dates applied to each
+foreach ($modules AS $module) {
+     $res = $conn->query ("SELECT * fROM melete_module_shdates WHERE MODULE_ID='$module'");
+
+    $fields = array();
+    while ($finfo = $res->fetch_field()) {
+        $fields[] = $finfo->name;
+    }
+
+    while ($row = $res->fetch_row() ) {
+        $z = array();
+         foreach ($row AS $r) {
+             $z[] = $conn->real_escape_string ($r);
+         }
+
+         $tmp = "INSERT INTO melete_module_shdates (" . implode (",", $fields) . ") VALUES (\"" . implode ("\",\"", $z) . "\");";
+         $out[] = str_replace ('""', 'NULL', $tmp);
+    }
+}
 
 // now get the section_resource data
 foreach ($sections AS $section) {
@@ -97,15 +120,32 @@ foreach ($sections AS $section) {
         $fields[] = $finfo->name;
     }
 
-    $z = array();
     while ($row = $res->fetch_row() ) {
+        $resource_id = $row[1];
+        $res2 = $conn->query ("SELECT * fROM melete_resource WHERE RESOURCE_ID='$resource_id'");
+    
+        $fields2 = array();
+        while ($finfo = $res2->fetch_field()) {
+            $fields2[] = $finfo->name;
+        }
+
+        while ($row2 = $res2->fetch_row() ) {
+            $z = array();
+            foreach ($row2 AS $r) {
+                $z[] = $conn->real_escape_string ($r);
+            }
+
+            $out[] = "INSERT INTO melete_resource (" . implode (",", $fields2) . ") VALUES (\"" . implode ("\",\"", $z) . "\");";
+        }
+
+        $z = array();
          $resources[] = $row[1];
 
          foreach ($row AS $r) {
              $z[] = $conn->real_escape_string ($r);
          }
 
-         $out[] = "INSERT INTO melete_section_resource (" . implode (",", $fields) . ") VALUES ('" . implode ("','", $z) . "');";
+         $out[] = "INSERT INTO melete_section_resource (" . implode (",", $fields) . ") VALUES (\"" . implode ("\",\"", $z) . "\");";
     }
 }
 
@@ -118,21 +158,21 @@ foreach ($resources AS $resource) {
         $fields[] = $finfo->name;
     }
 
-    $z = array();
     while ($row = $res->fetch_row() ) {
-         $files[] = $row[4];
+        $z = array();
+        $files[] = $row[4];
 
          foreach ($row AS $r) {
              $z[] = $conn->real_escape_string ($r);
          }
 
-         $out[] = "INSERT INTO CONTENT_RESOURCE (" . implode (",", $fields) . ") VALUES ('" . implode ("','", $z) . "');";
+         $out[] = "INSERT INTO CONTENT_RESOURCE (" . implode (",", $fields) . ") VALUES (\"" . implode ("\",\"", $z) . "\");";
     }
 }
 
 // write the insert statements to file
 $sql = implode ("\n", $out) . "\n\n\n" . implode ("\n", $tail);
-file_put_contents ($dest_dir . "/restore-inserts.sql", implode ("\n", $out));
+file_put_contents ($dest_dir . "/restore-inserts.sql", $sql);
 echo "wrote the insert to $dest_dir/restore-inserts.sql \n\n";
 
 $restores = array();
