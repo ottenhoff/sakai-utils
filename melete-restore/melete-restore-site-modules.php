@@ -46,7 +46,11 @@ while ($row = $res->fetch_row() ) {
     $z[] = $r;
   }
 
-  $tail[] = "INSERT INTO melete_course_module (" . implode (",", $fields) . ") VALUES (\"" . implode ("\",\"", $z) . "\");";
+  $tmp = "INSERT INTO melete_course_module (" . implode (",", $fields) . ") VALUES (\"" . implode ("\",\"", $z) . "\");";
+  $tmp = str_replace ('"0"', 0, $tmp);
+  $tmp = str_replace ('"1"', 1, $tmp);
+  $tmp = str_replace ('""', 'NULL', $tmp);
+  $tail[] = $tmp;
 }
 
 // now get the melete_modules data
