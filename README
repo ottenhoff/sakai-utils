@@ -1,3 +1,6 @@
+Various Sakai Utilities
+-------------------------
+
 This is a simple PHP utility to export a Sakai filesystem to a series of files. Sakai stores filenames as 36-character unique ids in directories of the format 2012/01/31/xxxxxxxxxxx.
 
 *Requirements:*
@@ -7,3 +10,16 @@ This is a simple PHP utility to export a Sakai filesystem to a series of files. 
 *Usage:*
 
   php -q export-content-to-files.php sakai_database /sakai/assetstore  /tmp/destination
+
+
+Melete module restoration (from a site id)
+
+  1) Restore database tables from backups
+
+    php -q pull-mysql-files-from-backups.php base_dir  dest_dir  db_name  YYYY-MM-DD
+
+  2) Restore the sites from the restored database
+
+    php -q melete-restore-site-modules.php restored_database the_site_id /tmp/restore 2012-04-01 /the/sakai/asset/dir
+
+  3) Above command will produce an SQL file to run against database and a directory of restored files
