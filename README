@@ -23,3 +23,12 @@ Melete module restoration (from a site id)
     php -q melete-restore-site-modules.php restored_database the_site_id /tmp/restore 2012-04-01 /the/sakai/asset/dir
 
   3) Above command will produce an SQL file to run against database and a directory of restored files
+
+  
+Assignment Restoration
+ 
+  1) Find the deleted assignments by inspecting SAKAI_EVENT for the asn.delete.assignment events
+
+  2) Retrieve insert SQL statements
+
+    php -q assignment-restore/assignment-restore.php /mnt/mysql/backup/dir/serverxxx-increments/ sakai28_client 2013-09-24 id1,id2,id3,id4,id5
