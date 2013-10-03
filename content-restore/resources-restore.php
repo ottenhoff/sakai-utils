@@ -20,6 +20,12 @@ $search = $mysqli->real_escape_string ($search);
 $res = $mysqli->query("SELECT * FROM CONTENT_RESOURCE WHERE RESOURCE_ID LIKE '%$search%' ");
 
 while ($row = $res->fetch_object()) {
+  if (empty($row->FILE_PATH)) {
+    print "Empty file path : ";
+    print_r($row);
+    continue;
+  }
+
   $file = $dir . $row->FILE_PATH;
 
   $slashes = substr_count ($row->RESOURCE_ID, "/");
