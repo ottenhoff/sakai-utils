@@ -22,19 +22,21 @@ $files = array(
   'ASSIGNMENT_SUBMISSION.sql',
 );
 
-foreach ($files AS $file) {
-  print "Restoring $file as of $date \n";
-  exec("rdiff-backup -r \"$date\" $base_dir/$db_name.$file /tmp/$file", $output);
-  if (!is_file("/tmp/$file")) {
-    print "Restore did not work \n\n";
-    print_r($output);
-    exit (1);
+if ($date != 'false') {
+  foreach ($files AS $file) {
+    print "Restoring $file as of $date \n";
+    exec("rdiff-backup -r \"$date\" $base_dir/$db_name.$file /tmp/$file", $output);
+    if (!is_file("/tmp/$file")) {
+      print "Restore did not work \n\n";
+      print_r($output);
+      exit (1);
+    }
   }
-}
 
-foreach ($files AS $file) {
-  print "Loading $file into archive database";
-  exec("mysql -u root aaa_archive < /tmp/$file");
+  foreach ($files AS $file) {
+    print "Loading $file into archive database";
+    exec("mysql -u root aaa_archive < /tmp/$file");
+  }
 }
 
 $contents = array();
