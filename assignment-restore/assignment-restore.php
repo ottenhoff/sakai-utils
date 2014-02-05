@@ -1,14 +1,13 @@
 <?php
 
-if (count ($argv) !== 5) {
- print ("Four parameters are required: base_dir, db_name, date (YYYY-MM-DD), and assignment id(s). \n\n");
+if (count ($argv) !== 4) {
+ print ("Three parameters are required: db_name, date (YYYY-MM-DD), and site id. \n\n");
  exit (1);
 }
 
-$base_dir = $argv[1];
-$db_name = $argv[2];
-$date = $argv[3];
-$assignments = explode(',', $argv[4]);
+$db_name = $argv[1];
+$date = $argv[2];
+$site_id = $argv[3];
 
 $output = array();
 $conn = new mysqli('localhost', 'root', '', 'aaa_archive');
@@ -24,8 +23,13 @@ $files = array(
 
 if ($date != 'false') {
   foreach ($files AS $file) {
+    $filename = "/mnt/massive06/b/mysql/server105-individual-increments/$db_name/$db_name.$file";
+    if (!is_file($filename)) $filename = str_replace("server105", "server106", $filename);
+    var_dump($filename);
+    if (!is_file($filename)) exit("Could not find file $filename \n");
+
     print "Restoring $file as of $date \n";
-    exec("rdiff-backup -r \"$date\" $base_dir/$db_name.$file /tmp/$file", $output);
+    exec("rdiff-backup -r \"$date\" $filename /tmp/$file", $output);
     if (!is_file("/tmp/$file")) {
       print "Restore did not work \n\n";
       print_r($output);
@@ -38,6 +42,14 @@ if ($date != 'false') {
     exec("mysql -u root aaa_archive < /tmp/$file");
   }
 }
+
+$assignments = array();
+$res = $conn->query("SELECT ASSIGNMENT_ID FROM ASSIGNMENT_ASSIGNMENT WHERE CONTEXT='$site_id'");
+while ($row = $res->fetch_object()) {
+  $assignments[] = $row->ASSIGNMENT_ID;
+}
+
+print "Found " . count($assignments) . " assignments in ASSIGNMENT_ASSIGNMENT \n";
 
 $contents = array();
 foreach ($assignments AS $assignment) {
