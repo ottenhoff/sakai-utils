@@ -56,7 +56,7 @@ foreach ($assignments AS $assignment) {
   // Find the content id by looking through the XML
   $res = $conn->query("SELECT * FROM ASSIGNMENT_ASSIGNMENT WHERE ASSIGNMENT_ID='$assignment'");
   $obj = $res->fetch_object();
-  $xml = simplexml_load_string($obj->XML);
+  $xml = simplexml_load_string(utf8_encode($obj->XML));
   $ac = $xml->attributes()->assignmentcontent;
   $parts = explode("/", $ac);
   $contents[] = array_pop($parts);
