@@ -13,10 +13,17 @@ $args = $_SERVER['argv'];
 $immediate = null;
 $now = time();
 $output = array();
-$token = "xxxxxxxxxxxxxxxxx";
-$url = "https://example.com/sakai";
+$token = "xxxxxxxxxxxxxxxxxx";
+$url = "https://admin.longsight.com/longsight";
 $patchdir = "/tmp/patches/";
 
+if (!is_dir($patchdir)) {
+  mkdir ($patchdir);
+  if (!is_dir($patchdir)) {
+    print "Could not create $patchdir \n";
+    exit(1);
+  }
+}
 
 // FIND ALL IPS THIS SERVER IS RESPONSIBLE FOR 
 $ips = array();
@@ -28,12 +35,13 @@ foreach ($ips AS $key => $val) {
   $pieces = explode('.', $val);
 
   if ((int)$pieces[0] !== 192 && (int)$pieces[0] != 10) {
-	unset($ips[$key]);
+    unset($ips[$key]);
   }
 }
 
 // DIE IF WE HAVE NO IPS
 if (count($ips) == 0) {
+  print "No IPs found\n";
   exit(1);
 }
 
@@ -50,6 +58,8 @@ if (!$patch) {
 patch($patch);
 
 function patch($patch) {
+  global $url, $patchdir;
+
   $hotdeploy = $patch->hotdeploy && $patch->hotdeploy > 0 ? true : false;
   error_log('' . $patch->hotdeploy, 3, "/tmp/myerror.log");
   error_log('' . $hotdeploy, 3, "/tmp/myerror.log");
@@ -143,6 +153,8 @@ function patch($patch) {
 	  }
 	}
 
+    $patch->files = str_replace("/mnt/master/longsight/sakai-builder/", $patchdir, $patch->files);
+
 	// SEE WHAT FILES ARE IN THE PATCH
 	$tar_contents = array();
 
@@ -160,6 +172,8 @@ function patch($patch) {
 	  if (!is_file($patch->files)) update_patch ($patch->patch_id, FILE_MISSING);
 	  $ignore = exec('tar tzf ' . $patch->files, $tar_contents);
 	}
+
+    var_dump($tar_contents);
 
 	// LOOK INSIDE THE PATCH
 	$components_number = 0;
@@ -298,9 +312,9 @@ function patch($patch) {
 	exec($cmd, $output);
 
 	// SLEEP FOR 60 seconds and then check the logs
-	sleep(60);
+	sleep(50);
 
-	for ($x = 0; $x < 320; $x++) {
+	for ($x = 0; $x < 220; $x++) {
 	  $cmd = 'tail -n 250 ' . $patch->tomcat_dir . '/logs/catalina.out';
 
 	  $logs = array();
@@ -333,6 +347,8 @@ function patch($patch) {
 }
 
 function update_patch($patch_id, $result, $output=array(), $startup = 0) {
+  global $url;
+
   $time = time();
   $text = '';
 
