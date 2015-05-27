@@ -8,14 +8,18 @@ define('FILE_MISSING', 5);
 define('IN_PROGRESS', 10);
 
 $args = $_SERVER['argv'];
+if (count($args) !== 4) {
+  print "Three parameters are required: token, patcher URL, and patch directory. \n";
+  exit(1);
+}
 
 // ESTABLISH VARIABLES
 $immediate = null;
 $now = time();
 $output = array();
-$token = "xxxxxxxxxxxxxxxxxx";
-$url = "https://admin.longsight.com/longsight";
-$patchdir = "/tmp/patches/";
+$token = $args[1];
+$url = $args[2];
+$patchdir = $args[3];
 
 if (!is_dir($patchdir)) {
   mkdir ($patchdir);
