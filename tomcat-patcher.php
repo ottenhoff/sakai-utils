@@ -61,9 +61,6 @@ function patch($patch) {
   global $url, $patchdir;
 
   $hotdeploy = $patch->hotdeploy && $patch->hotdeploy > 0 ? true : false;
-  error_log('' . $patch->hotdeploy, 3, "/tmp/myerror.log");
-  error_log('' . $hotdeploy, 3, "/tmp/myerror.log");
-
   $test_file = $patch->tomcat_dir . '/conf/server.xml';
 
   // DIE IF WE DONT HAVE ACCESS TO THE PATCH
@@ -73,7 +70,6 @@ function patch($patch) {
   // FIND THE OWNER OF A CONF FILE
   $sakai_uid = fileowner($test_file);
   $script_uid = posix_getuid();
-
 
   if (!$sakai_uid || !$script_uid) {
 	update_patch ($patch->patch_id, TOMCAT_NOTEXIST);
@@ -148,12 +144,12 @@ function patch($patch) {
 	foreach ($individual_files AS $sf) {
 	  $f = pathinfo($sf);
 	  if (!is_file($patchdir . $f['basename'])) {
-		$ret = copy ('http://74.201.2.240/public_patches/' . $f['basename'], $patchdir . $f['basename']);
-		print "Copying " . $f['basename'] . " to $patchdir :: $ret \n";
+	    $ret = copy ('http://74.201.2.240/public_patches/' . $f['basename'], $patchdir . $f['basename']);
+	    print "Copying " . $f['basename'] . " to $patchdir :: $ret \n";
 	  }
 	}
 
-    $patch->files = str_replace("/mnt/master/longsight/sakai-builder/", $patchdir, $patch->files);
+        $patch->files = str_replace("/mnt/master/longsight/sakai-builder/", $patchdir, $patch->files);
 
 	// SEE WHAT FILES ARE IN THE PATCH
 	$tar_contents = array();
@@ -163,17 +159,15 @@ function patch($patch) {
 	  $thefiles = explode(" ", $patch->files);
 
 	  foreach ($thefiles AS $indiv) {
-		if (!is_file($indiv)) update_patch ($patch->patch_id, FILE_MISSING);
+	    if (!is_file($indiv)) update_patch ($patch->patch_id, FILE_MISSING);
 
-		$ignore = exec('tar tzf ' . $indiv, $tar_contents);
+	    $ignore = exec('tar tzf ' . $indiv, $tar_contents);
 	  }
 	}
 	else {
 	  if (!is_file($patch->files)) update_patch ($patch->patch_id, FILE_MISSING);
 	  $ignore = exec('tar tzf ' . $patch->files, $tar_contents);
 	}
-
-    var_dump($tar_contents);
 
 	// LOOK INSIDE THE PATCH
 	$components_number = 0;
@@ -187,7 +181,7 @@ function patch($patch) {
 	  $four = substr($filename, strlen($filename) - 4);
 
 	  if (substr($four, 0, 1) == '.') {
-		$ext = substr($filename, strrpos($filename, '.') + 1);
+	    $ext = substr($filename, strrpos($filename, '.') + 1);
 	  }
 
 	  $first = substr($filename, 0, strpos($filename, '/'));
@@ -234,7 +228,6 @@ function patch($patch) {
 		$removes[md5($cw)] = $cw;
 	  }
 	}
-
   }
 
   // CHECK IF THE PROCESS IS ALIVE
@@ -431,11 +424,8 @@ function get_wildcarded_filename($filename) {
   //take just the base name (i.e. everything until a number) and then remove
   //everything that consist of {basename}#.
   //
-  //ex:   
-  //      "messageforums-api-2.7.4-SNAPSHOT.jar"
-  //
+  //ex: "messageforums-api-2.7.4-SNAPSHOT.jar"
   //    $basename = messageforums-api-
-  //
   //    rm messageforums-api-1*, rm messageforums-api-2*, rm messageforums-api-3*...
 
   //step 1, get base name:  (ie all letters until you hit a number)
@@ -450,9 +440,7 @@ function get_wildcarded_filename($filename) {
   }
   $bname = $newBaseName;
 
-
   //step 2:  create all "rm" commands based on basename + # + *.jar
-
   $returnArray = array();
   for ($i = 0; $i < 10; $i++) {
     $returnArray[$i] = $bname . $i . "*.jar";
