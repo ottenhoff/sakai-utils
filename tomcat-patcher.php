@@ -73,14 +73,16 @@ function patch($patch) {
   }
   // FIND THE OWNER OF A CONF FILE
   $sakai_uid = fileowner($test_file);
-  $script_uid = posix_getuid();
+  // Sometimes posix_getuid is not available so we don't get to do this check
+  $script_uid = function_exists('posix_getuid') ? posix_getuid() : $sakai_uid;
 
   if (!$sakai_uid || !$script_uid) {
 	update_patch ($patch->patch_id, TOMCAT_NOTEXIST);
   }
   // ONLY RUN IF WE ARE RUNNING UNDER THE RIGHT USER!!!!!!!!!
   if ($script_uid === 0 || $sakai_uid !== $script_uid) {
-	exit(0);
+    print "UID running the script does not match the owner of Tomcat dir\n";
+    exit(1);
   }
   // MARK THAT WE ARE IN PROGRESS SO PATCHES DONT OVERRUN EACH OTHER
   update_patch($patch->patch_id, IN_PROGRESS);
