@@ -1,10 +1,10 @@
 <?php
 
-$source = 'sakai_a';
-$target = 'sakai_b';
+$source = 'point_lamp_migration';
+$target = 'sakai_point_dev';
 
-$s = new mysqli('10.99.99.99', 'mysqlusera', 'xxxxxx', $source);
-$t = new mysqli('10.99.99.99', 'mysqluserb', 'yyyyyy', $target);
+$s = new mysqli('lsdevaurora-cluster.cluster-ctj7ow5gksfj.us-east-1.rds.amazonaws.com', 'point', 'temp123!', $source);
+$t = new mysqli('lsdevaurora-cluster.cluster-ctj7ow5gksfj.us-east-1.rds.amazonaws.com', 'sakai_point', '94XKi7NNd5b0', $target);
 if (!$s || !$t) die('Bad mysql connection');
 
 $sourceFunctions = $targetFunctions = array();

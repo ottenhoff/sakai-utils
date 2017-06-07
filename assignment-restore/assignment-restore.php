@@ -1,18 +1,13 @@
 <?php
 
 if (count ($argv) !== 4) {
- print ("Three parameters are required: directory with trailing slash, site id, and lowercase 0/1 flag. \n\n");
+ print ("Three parameters are required: database name, site id, and lowercase 0/1 flag. \n\n");
  exit (1);
 }
 
-$dir = $argv[1];
+$dbname = $argv[1];
 $site_id = $argv[2];
 $lower = (bool)$argv[3];
-
-if (!is_dir ($dir)) {
-  print "Dir does not exist: $dir \n";
-  exit (1);
-}
 
 $aa_t = "ASSIGNMENT_ASSIGNMENT";
 $ac_t = "ASSIGNMENT_CONTENT";
@@ -25,26 +20,8 @@ if ($lower) {
 }
 
 $output = array();
-$conn = new mysqli('127.0.0.1', 'aaa_archive', 'aaa_archive', 'aaa_archive');
-$conn->query("DROP TABLE ASSIGNMENT_ASSIGNMENT");
-$conn->query("DROP TABLE ASSIGNMENT_CONTENT");
-$conn->query("DROP TABLE ASSIGNMENT_SUBMISSION");
-
-$files = array(
-  'ASSIGNMENT_ASSIGNMENT-schema.sql',
-  'ASSIGNMENT_ASSIGNMENT.sql',
-  'ASSIGNMENT_CONTENT-schema.sql',
-  'ASSIGNMENT_CONTENT.sql',
-  'ASSIGNMENT_SUBMISSION-schema.sql',
-  'ASSIGNMENT_SUBMISSION.sql',
-);
-
-foreach ($files AS $file) {
-  if ($lower) $file = strtolower($file);
-
-  print "Loading $file into archive database \n";
-  exec("mysql -u root aaa_archive < " . $dir . $file);
-}
+$conn = new mysqli('est58-cluster.cluster-ctj7ow5gksfj.us-east-1.rds.amazonaws.com', 'apurestore', 'restore19395', $dbname);
+var_dump($conn);
 
 $assignments = array();
 $res = $conn->query("SELECT ASSIGNMENT_ID FROM $aa_t WHERE CONTEXT='$site_id'");
@@ -71,13 +48,13 @@ $a_sql = '"' . implode('","', $assignments) . '"';
 $c_sql = '"' . implode('","', $contents) . '"';
 
 print "Restoring $aa_t to /tmp/assignment-restore.sql \n";
-exec("mysqldump --extended-insert=FALSE --skip-set-charset --skip-add-locks --skip-disable-keys --skip-comments --no-create-info -u root --where 'ASSIGNMENT_ID IN ($a_sql)' aaa_archive $aa_t >> /tmp/assignment-restore.sql");
+exec("mysqldump --extended-insert=FALSE --skip-set-charset --skip-add-locks --skip-disable-keys --skip-comments --no-create-info -h est58-cluster.cluster-ctj7ow5gksfj.us-east-1.rds.amazonaws.com -u apurestore -prestore19395 --where 'ASSIGNMENT_ID IN ($a_sql)' $dbname $aa_t >> /tmp/assignment-restore.sql");
 
 print "Restoring $ac_t to /tmp/assignment-restore.sql \n";
-exec("mysqldump --extended-insert=FALSE --skip-set-charset --skip-add-locks --skip-disable-keys --skip-comments --no-create-info -u root --where 'CONTENT_ID IN ($c_sql)' aaa_archive $ac_t >> /tmp/assignment-restore.sql");
+exec("mysqldump --extended-insert=FALSE --skip-set-charset --skip-add-locks --skip-disable-keys --skip-comments --no-create-info -h est58-cluster.cluster-ctj7ow5gksfj.us-east-1.rds.amazonaws.com -u apurestore -prestore19395 --where 'CONTENT_ID IN ($c_sql)' $dbname $ac_t >> /tmp/assignment-restore.sql");
 
 print "Restoring $as_t to /tmp/assignment-restore.sql \n";
-exec("mysqldump --extended-insert=FALSE --skip-set-charset --skip-add-locks --skip-disable-keys --skip-comments --no-create-info -u root --where 'CONTEXT IN ($a_sql)' aaa_archive $as_t >> /tmp/assignment-restore.sql");
+exec("mysqldump --extended-insert=FALSE --skip-set-charset --skip-add-locks --skip-disable-keys --skip-comments --no-create-info -h est58-cluster.cluster-ctj7ow5gksfj.us-east-1.rds.amazonaws.com -u apurestore -prestore19395 --where 'CONTEXT IN ($a_sql)' $dbname $as_t >> /tmp/assignment-restore.sql");
 
 exec ("cd /tmp;zip -9 --password TZ9mnqR7FTvwWQ4J assignment-restore.sql.zip assignment-restore.sql");
 

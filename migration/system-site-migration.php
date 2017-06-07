@@ -2,7 +2,7 @@
 require "migration-helper.php";
 require "start-values.php";
 
-$handle = fopen("sites4.csv", "r");
+$handle = fopen("sites.csv", "r");
 
 $files = array();
 while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
@@ -26,9 +26,9 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   // Second do the realms
   $res = $s->query("SELECT REALM_KEY FROM sakai_realm WHERE REALM_ID LIKE '%$site_id%'");
   while ($row = $res->fetch_object()) {
-    $old_realm_key = $row->REALM_KEY;
-    $plus = $new_values['sakai_realm'];
-    $new_realm_key = $old_realm_key + $plus;
+    $new_realm_key = $old_realm_key = $row->REALM_KEY;
+    //$plus = $new_values['sakai_realm'];
+    //$new_realm_key = $old_realm_key + $plus;
     print "INFO: transferring $old_realm_key to new realm $new_realm_key \n";
 
     // Transferring the users over
@@ -45,13 +45,27 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
       die ("ERROR: $target.sakai_preferences :: $site_id ::: $t->error \n");
     }
 
-    if(!$t->query("INSERT IGNORE INTO $target.sakai_realm SELECT $new_realm_key, REALM_ID, PROVIDER_ID, MAINTAIN_ROLE+1000, CREATEDBY, MODIFIEDBY, CREATEDON, MODIFIEDON FROM $source.sakai_realm WHERE REALM_KEY=$old_realm_key ")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sakai_realm_role SELECT ROLE_KEY, ROLE_NAME FROM $source.sakai_realm_role WHERE ROLE_KEY IN
+        (SELECT ROLE_KEY FROM $source.sakai_realm_rl_fn WHERE REALM_KEY=$old_realm_key) OR ROLE_KEY IN (SELECT MAINTAIN_ROLE FROM $source.sakai_realm WHERE REALM_KEY=$old_realm_key)")) {
+      die ("ERROR: $target.sakai_realm_role :: $site_id ::: $t->error \n");
+    }
+    if(!$t->query("INSERT IGNORE INTO $target.sakai_realm SELECT $new_realm_key, REALM_ID, PROVIDER_ID, MAINTAIN_ROLE, CREATEDBY, MODIFIEDBY, CREATEDON, MODIFIEDON FROM $source.sakai_realm WHERE REALM_KEY=$old_realm_key")) {
       die ("ERROR: $target.sakai_realm :: $site_id ::: $t->error \n");
     }
-    if(!$t->query("INSERT IGNORE INTO $target.sakai_realm_rl_gr SELECT $new_realm_key, USER_ID, ROLE_KEY+1000, ACTIVE, PROVIDED FROM $source.sakai_realm_rl_gr WHERE REALM_KEY=$old_realm_key")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sakai_realm_role_desc SELECT REALM_KEY, ROLE_KEY, DESCRIPTION, PROVIDER_ONLY FROM $source.sakai_realm_role_desc WHERE REALM_KEY=$old_realm_key")) {
+      die ("ERROR: $target.sakai_realm_role_desc :: $site_id ::: $t->error \n");
+    }
+    if(!$t->query("INSERT IGNORE INTO $target.sakai_realm_rl_gr SELECT $new_realm_key, USER_ID, ROLE_KEY, ACTIVE, PROVIDED FROM $source.sakai_realm_rl_gr WHERE REALM_KEY=$old_realm_key")) {
       die ("ERROR: $target.sakai_realm_rl_gr :: $site_id ::: $t->error \n");
     }
-    if(!$t->query("INSERT IGNORE INTO $target.sakai_realm_role_desc SELECT $new_realm_key, ROLE_KEY+1000, DESCRIPTION, PROVIDER_ONLY FROM $source.sakai_realm_role_desc WHERE ROLE_KEY >= 3 AND REALM_KEY=$old_realm_key")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sakai_realm_function SELECT FUNCTION_KEY, FUNCTION_NAME FROM $source.sakai_realm_function WHERE FUNCTION_KEY IN (SELECT FUNCTION_KEY FROM $source.sakai_realm_rl_fn WHERE REALM_KEY=$old_realm_key)")) {
+      die ("ERROR: $target.sakai_realm_function :: $site_id ::: $t->error \n");
+    }
+    if(!$t->query("INSERT IGNORE INTO $target.sakai_realm_rl_fn SELECT $new_realm_key, ROLE_KEY, FUNCTION_KEY FROM $source.sakai_realm_rl_fn WHERE REALM_KEY=$old_realm_key")) {
+      die ("ERROR: $target.sakai_realm_rl_fn :: $site_id ::: $t->error \n");
+    }
+    /*
+    if(!$t->query("INSERT IGNORE INTO $target.sakai_realm_role_desc SELECT $new_realm_key, ROLE_KEY, DESCRIPTION, PROVIDER_ONLY FROM $source.sakai_realm_role_desc WHERE ROLE_KEY >= 3 AND REALM_KEY=$old_realm_key")) {
       die ("ERROR: $target.sakai_realm_role_desc :: $site_id ::: $t->error \n");
     }
     $res2 = $s->query("SELECT fn.REALM_KEY, fn.ROLE_KEY, fn.FUNCTION_KEY, f.FUNCTION_NAME FROM sakai_realm_rl_fn fn INNER JOIN sakai_realm_function f ON fn.FUNCTION_KEY=f.FUNCTION_KEY WHERE fn.REALM_KEY=$old_realm_key");
@@ -59,8 +73,7 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
       $new_function = 0;
       if (in_array($row2->FUNCTION_NAME, $targetFunctions)) {
         $new_function = array_search($row2->FUNCTION_NAME, $targetFunctions);
-        $new_role_key = $row2->ROLE_KEY >= 3 ? $row2->ROLE_KEY+1000 : $row2->ROLE_KEY;
-        //if ($new_function != $row2->FUNCTION_KEY) print "Remapped $row2->FUNCTION_KEY to $new_function \n";
+        $new_role_key = $row2->ROLE_KEY >= 3 ? $row2->ROLE_KEY : $row2->ROLE_KEY;
         if(!$t->query("INSERT INTO sakai_realm_rl_fn VALUES ($new_realm_key, $new_role_key, $new_function)")) {
           die ("ERROR: $target.sakai_realm_rl_fn :: $site_id ::: $t->error \n");
         }
@@ -70,6 +83,7 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
       }
     }
   }
+  */
 
   // Third do assignments
   if ($res3 = $t->query("SELECT * FROM $source.assignment_assignment WHERE CONTEXT='$site_id' ")) {
@@ -127,26 +141,26 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   }
 
   // Fifth the announcements
-  if(!$t->query("INSERT INTO $target.announcement_channel SELECT * FROM $source.announcement_channel WHERE CHANNEL_ID = '/announcement/channel/$site_id/main' ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.announcement_channel SELECT * FROM $source.announcement_channel WHERE CHANNEL_ID = '/announcement/channel/$site_id/main' ")) {
     die ("ERROR: $target.announcement_channel :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.announcement_message SELECT * FROM $source.announcement_message WHERE CHANNEL_ID = '/announcement/channel/$site_id/main' ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.announcement_message SELECT * FROM $source.announcement_message WHERE CHANNEL_ID = '/announcement/channel/$site_id/main' ")) {
     die ("ERROR: $target.announcement_channel :: $site_id ::: $t->error \n");
   }
 
   // Sixth the chats
-  if(!$t->query("INSERT INTO $target.chat2_channel SELECT * FROM $source.chat2_channel WHERE CONTEXT = '$site_id' ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.chat2_channel SELECT * FROM $source.chat2_channel WHERE CONTEXT = '$site_id' ")) {
     die ("ERROR: $target.chat2_channel :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.chat2_message SELECT * FROM $source.chat2_message WHERE CHANNEL_ID IN (SELECT CHANNEL_ID FROM chat2_channel WHERE CONTEXT = '$site_id') ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.chat2_message SELECT * FROM $source.chat2_message WHERE CHANNEL_ID IN (SELECT CHANNEL_ID FROM chat2_channel WHERE CONTEXT = '$site_id') ")) {
     die ("ERROR: $target.chat2_message :: $site_id ::: $t->error \n");
   }
 
   // Sixth the content
-  if(!$t->query("INSERT INTO $target.content_collection SELECT * FROM $source.content_collection WHERE COLLECTION_ID LIKE '%$site_id%' ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.content_collection SELECT * FROM $source.content_collection WHERE COLLECTION_ID LIKE '%$site_id%' ")) {
     die ("ERROR: $target.content_collection :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.content_resource SELECT RESOURCE_ID, RESOURCE_UUID, IN_COLLECTION, FILE_PATH, XML, BINARY_ENTITY, FILE_SIZE, CONTEXT, RESOURCE_TYPE_ID
+  if(!$t->query("INSERT IGNORE INTO $target.content_resource SELECT RESOURCE_ID, RESOURCE_UUID, IN_COLLECTION, FILE_PATH, XML, BINARY_ENTITY, FILE_SIZE, CONTEXT, RESOURCE_TYPE_ID
      FROM $source.content_resource WHERE RESOURCE_ID LIKE '%$site_id%' ")) {
     die ("ERROR: $target.content_resource :: $site_id ::: $t->error \n");
   }
@@ -157,10 +171,10 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   }
 
   // Seventh the mail archive
-  if(!$t->query("INSERT INTO $target.mailarchive_channel SELECT * FROM $source.mailarchive_channel WHERE CHANNEL_ID='/mailarchive/channel/$site_id/main'")) {
+  if(!$t->query("INSERT IGNORE INTO $target.mailarchive_channel SELECT * FROM $source.mailarchive_channel WHERE CHANNEL_ID='/mailarchive/channel/$site_id/main'")) {
     die ("ERROR:  $target.mailarchive_channel :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mailarchive_message SELECT * FROM $source.mailarchive_message WHERE CHANNEL_ID='/mailarchive/channel/$site_id/main'")) {
+  if(!$t->query("INSERT IGNORE INTO $target.mailarchive_message SELECT * FROM $source.mailarchive_message WHERE CHANNEL_ID='/mailarchive/channel/$site_id/main'")) {
     die ("ERROR:  $target.mailarchive_message :: $site_id ::: $t->error \n");
   }
 
@@ -176,59 +190,42 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   $msg_unread_plus = $new_values['mfr_unread_status_t'];
   $msg_attach_plus = $new_values['mfr_attachment_t'];
 
-  if(!$t->query("INSERT INTO $target.mfr_area_t SELECT ID+$msg_area_plus, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, CONTEXT_ID, `NAME`, HIDDEN, TYPE_UUID, ENABLED, LOCKED,
+  if(!$t->query("INSERT INTO $target.mfr_area_t SELECT ID, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, CONTEXT_ID, `NAME`, HIDDEN, TYPE_UUID, ENABLED, LOCKED,
     MODERATED, SENDEMAILOUT, AUTO_MARK_THREADS_READ, AVAILABILITY_RESTRICTED, AVAILABILITY, OPEN_DATE, CLOSE_DATE, POST_FIRST, SEND_TO_EMAIL
     FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id'")) {
       die ("ERROR: $target.mfr_area_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_open_forum_t SELECT ID+$msg_of_plus, FORUM_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, DEFAULTASSIGNNAME, TITLE, SHORT_DESCRIPTION, EXTENDED_DESCRIPTION,
-    TYPE_UUID, SORT_INDEX, LOCKED, DRAFT,surrogateKey+$msg_area_plus,MODERATED,AUTO_MARK_THREADS_READ,AVAILABILITY_RESTRICTED,AVAILABILITY,OPEN_DATE,CLOSE_DATE,POST_FIRST
+  if(!$t->query("INSERT INTO $target.mfr_open_forum_t SELECT ID, FORUM_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, DEFAULTASSIGNNAME, TITLE, SHORT_DESCRIPTION, EXTENDED_DESCRIPTION,
+    TYPE_UUID, SORT_INDEX, LOCKED, DRAFT,surrogateKey,MODERATED,AUTO_MARK_THREADS_READ,AVAILABILITY_RESTRICTED,AVAILABILITY,OPEN_DATE,CLOSE_DATE,POST_FIRST
     FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ")) {
       die ("ERROR: $target.mfr_open_forum_t :: $site_id ::: $t->error \n");
     }
-  if(!$t->query("INSERT INTO $target.mfr_private_forum_t SELECT ID+$msg_pf_plus, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, TITLE, SHORT_DESCRIPTION, EXTENDED_DESCRIPTION,
-    TYPE_UUID, SORT_INDEX, OWNER, AUTO_FORWARD, AUTO_FORWARD_EMAIL, PREVIEW_PANE_ENABLED, surrogateKey+$msg_area_plus
+  if(!$t->query("INSERT INTO $target.mfr_private_forum_t SELECT ID, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, TITLE, SHORT_DESCRIPTION, EXTENDED_DESCRIPTION,
+    TYPE_UUID, SORT_INDEX, OWNER, AUTO_FORWARD, AUTO_FORWARD_EMAIL, PREVIEW_PANE_ENABLED, surrogateKey
     FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ")) {
       die ("ERROR: $target.mfr_open_forum_t :: $site_id ::: $t->error \n");
     }
-  if(!$t->query("INSERT INTO $target.mfr_topic_t SELECT ID+$msg_topic_plus, TOPIC_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, DEFAULTASSIGNNAME, TITLE, SHORT_DESCRIPTION, EXTENDED_DESCRIPTION,
-    MUTABLE,SORT_INDEX,TYPE_UUID,of_surrogateKey+$msg_of_plus, pf_surrogateKey, USER_ID, CONTEXT_ID, pt_surrogateKey, LOCKED, DRAFT, CONFIDENTIAL_RESPONSES, MUST_RESPOND_BEFORE_READING, HOUR_BEFORE_RESPONSES_VISIBLE,
-    MODERATED, AUTO_MARK_THREADS_READ, AVAILABILITY_RESTRICTED, AVAILABILITY, OPEN_DATE, CLOSE_DATE, POST_FIRST
-    FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ")) {
-      die ("ERROR: $target.mfr_topic_t :: $site_id ::: $t->error \n");
+  if(!$t->query("INSERT INTO $target.mfr_topic_t SELECT * FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ")) {
+      die ("ERROR: $target.mfr_topic_t :: open_forums :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_topic_t SELECT ID+$msg_topic_plus, TOPIC_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, DEFAULTASSIGNNAME, TITLE, SHORT_DESCRIPTION, EXTENDED_DESCRIPTION,
-    MUTABLE,SORT_INDEX,TYPE_UUID,of_surrogateKey, pf_surrogateKey+$msg_pf_plus, USER_ID, CONTEXT_ID, pt_surrogateKey, LOCKED, DRAFT, CONFIDENTIAL_RESPONSES, MUST_RESPOND_BEFORE_READING, HOUR_BEFORE_RESPONSES_VISIBLE,
-    MODERATED, AUTO_MARK_THREADS_READ, AVAILABILITY_RESTRICTED, AVAILABILITY, OPEN_DATE, CLOSE_DATE, POST_FIRST
-    FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ")) {
-      die ("ERROR2: $target.mfr_topic_t :: $site_id ::: $t->error \n");
+  if(!$t->query("INSERT INTO $target.mfr_topic_t SELECT * FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ")) {
+      die ("ERROR2: $target.mfr_topic_t :: private_forums :: $site_id ::: $t->error \n");
     }
   $t->query("SET foreign_key_checks = 0");
-  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT ID+$msg_message_plus, MESSAGE_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, TITLE, BODY, AUTHOR, HAS_ATTACHMENTS, GRADEASSIGNMENTNAME,
-    LABEL, IN_REPLY_TO, TYPE_UUID, APPROVED, DRAFT, surrogateKey+$msg_topic_plus, EXTERNAL_EMAIL, EXTERNAL_EMAIL_ADDRESS, RECIPIENTS_AS_TEXT, DELETED, NUM_READERS,THREADID+$msg_message_plus,LASTTHREADATE, LASTTHREAPOST+$msg_message_plus,RECIPIENTS_AS_TEXT_BCC
-    FROM $source.mfr_message_t WHERE IN_REPLY_TO IS NULL AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
+  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO IS NULL AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
       die ("ERROR1: $target.mfr_message_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT ID+$msg_message_plus, MESSAGE_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, TITLE, BODY, AUTHOR, HAS_ATTACHMENTS, GRADEASSIGNMENTNAME,
-    LABEL, IN_REPLY_TO, TYPE_UUID, APPROVED, DRAFT, surrogateKey+$msg_topic_plus, EXTERNAL_EMAIL, EXTERNAL_EMAIL_ADDRESS, RECIPIENTS_AS_TEXT, DELETED, NUM_READERS,THREADID+$msg_message_plus,LASTTHREADATE, LASTTHREAPOST+$msg_message_plus,RECIPIENTS_AS_TEXT_BCC
-    FROM $source.mfr_message_t WHERE IN_REPLY_TO IS NULL AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
+  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO IS NULL AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
       die ("ERROR2: $target.mfr_message_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT ID+$msg_message_plus, MESSAGE_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, TITLE, BODY, AUTHOR, HAS_ATTACHMENTS, GRADEASSIGNMENTNAME,
-    LABEL, IN_REPLY_TO+$msg_message_plus, TYPE_UUID, APPROVED, DRAFT, surrogateKey+$msg_topic_plus, EXTERNAL_EMAIL, EXTERNAL_EMAIL_ADDRESS, RECIPIENTS_AS_TEXT, DELETED, NUM_READERS,THREADID+$msg_message_plus,LASTTHREADATE, LASTTHREAPOST+$msg_message_plus,RECIPIENTS_AS_TEXT_BCC
-    FROM $source.mfr_message_t WHERE IN_REPLY_TO > 0 AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
+  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO > 0 AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
       die ("ERROR3: $target.mfr_message_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT ID+$msg_message_plus, MESSAGE_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, TITLE, BODY, AUTHOR, HAS_ATTACHMENTS, GRADEASSIGNMENTNAME,
-    LABEL, IN_REPLY_TO+$msg_message_plus, TYPE_UUID, APPROVED, DRAFT, surrogateKey+$msg_topic_plus, EXTERNAL_EMAIL, EXTERNAL_EMAIL_ADDRESS, RECIPIENTS_AS_TEXT, DELETED, NUM_READERS,THREADID+$msg_message_plus,LASTTHREADATE, LASTTHREAPOST+$msg_message_plus,RECIPIENTS_AS_TEXT_BCC
-    FROM $source.mfr_message_t WHERE IN_REPLY_TO > 0 AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
+  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO > 0 AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
       die ("ERROR4: $target.mfr_message_t :: $site_id ::: $t->error \n");
   }
   $t->query("SET foreign_key_checks = 1");
-  if(!$t->query("INSERT INTO $target.mfr_permission_level_t SELECT ID+$msg_perm_plus, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, `NAME`, TYPE_UUID, CHANGE_SETTINGS, DELETE_ANY, DELETE_OWN,
-    MARK_AS_READ, MOVE_POSTING, NEW_FORUM, NEW_RESPONSE, NEW_RESPONSE_TO_RESPONSE, NEW_TOPIC, POST_TO_GRADEBOOK, X_READ, REVISE_ANY, REVISE_OWN, MODERATE_POSTINGS
-    FROM $source.mfr_permission_level_t WHERE
-    ID IN (
+  if(!$t->query("INSERT INTO $target.mfr_permission_level_t SELECT * FROM $source.mfr_permission_level_t WHERE ID IN (
     SELECT PERMISSION_LEVEL FROM $source.mfr_membership_item_t WHERE
       a_surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id')
        OR
@@ -241,15 +238,15 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
     ")) {
       die ("ERROR: $target.mfr_permission_level_t :: $site_id ::: $t->error \n");
     }
-  if(!$t->query("INSERT INTO $target.mfr_membership_item_t SELECT ID+$msg_member_plus,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL+$msg_perm_plus,a_surrogateKey+$msg_area_plus, t_surrogateKey, of_surrogateKey
+  if(!$t->query("INSERT INTO $target.mfr_membership_item_t SELECT ID,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL,a_surrogateKey, t_surrogateKey, of_surrogateKey
     FROM $source.mfr_membership_item_t WHERE a_surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id')")) {
       die ("ERROR1: $target.mfr_membership_item_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_membership_item_t SELECT ID+$msg_member_plus,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL+$msg_perm_plus,a_surrogateKey, t_surrogateKey, of_surrogateKey+$msg_of_plus
+  if(!$t->query("INSERT INTO $target.mfr_membership_item_t SELECT ID,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL,a_surrogateKey, t_surrogateKey, of_surrogateKey
     FROM $source.mfr_membership_item_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ")) {
       die ("ERROR2: $target.mfr_membership_item_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_membership_item_t SELECT ID+$msg_member_plus,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL+$msg_perm_plus,a_surrogateKey, t_surrogateKey+$msg_topic_plus, of_surrogateKey
+  if(!$t->query("INSERT INTO $target.mfr_membership_item_t SELECT ID,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL,a_surrogateKey, t_surrogateKey, of_surrogateKey
     FROM $source.mfr_membership_item_t WHERE t_surrogateKey IN
         (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id')))
         OR
@@ -258,20 +255,20 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
       ")) {
       die ("ERROR3: $target.mfr_membership_item_t :: $site_id ::: $t->error \n");
       }
-  if(!$t->query("INSERT IGNORE INTO $target.mfr_message_t SELECT ID+$msg_message_plus, MESSAGE_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, TITLE, BODY, AUTHOR, HAS_ATTACHMENTS, GRADEASSIGNMENTNAME,
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_message_t SELECT ID, MESSAGE_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, TITLE, BODY, AUTHOR, HAS_ATTACHMENTS, GRADEASSIGNMENTNAME,
     LABEL, IN_REPLY_TO, TYPE_UUID, APPROVED, DRAFT, surrogateKey, EXTERNAL_EMAIL, EXTERNAL_EMAIL_ADDRESS, RECIPIENTS_AS_TEXT, DELETED, NUM_READERS,THREADID,LASTTHREADATE, LASTTHREAPOST,RECIPIENTS_AS_TEXT_BCC
     FROM $source.mfr_message_t WHERE MESSAGE_DTYPE='PM' AND surrogateKey IS NULL AND ID IN (SELECT messageSurrogateKey FROM $source.mfr_pvt_msg_usr_t WHERE CONTEXT_ID='$site_id') ")) {
       die ("ERROR1: $target.mfr_pvt_msg_usr_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT IGNORE INTO $target.mfr_pvt_msg_usr_t SELECT messageSurrogateKey+$msg_message_plus,USER_ID,TYPE_UUID,CONTEXT_ID,READ_STATUS,user_index_col,BCC,REPLIED
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_pvt_msg_usr_t SELECT messageSurrogateKey,USER_ID,TYPE_UUID,CONTEXT_ID,READ_STATUS,user_index_col,BCC,REPLIED
     FROM $source.mfr_pvt_msg_usr_t WHERE CONTEXT_ID='$site_id'")) {
       die ("ERROR2: $target.mfr_pvt_msg_usr_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT IGNORE INTO $target.mfr_synoptic_item SELECT SYNOPTIC_ITEM_ID+$msg_syn_plus,VERSION,USER_ID,SITE_ID,SITE_TITLE,NEW_MESSAGES_COUNT,MESSAGES_LAST_VISIT_DT,NEW_FORUM_COUNT,FORUM_LAST_VISIT_DT,HIDE_ITEM
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_synoptic_item SELECT SYNOPTIC_ITEM_ID,VERSION,USER_ID,SITE_ID,SITE_TITLE,NEW_MESSAGES_COUNT,MESSAGES_LAST_VISIT_DT,NEW_FORUM_COUNT,FORUM_LAST_VISIT_DT,HIDE_ITEM
     FROM $source.mfr_synoptic_item WHERE SITE_ID='$site_id'")) {
       print ("ERROR: $target.mfr_synoptic_item :: $site_id ::: $t->error \n");
     }
-  if(!$t->query("INSERT IGNORE INTO $target.mfr_unread_status_t SELECT ID+$msg_unread_plus,VERSION,TOPIC_C+$msg_topic_plus,MESSAGE_C+$msg_member_plus,USER_C,READ_C FROM $source.mfr_unread_status_t WHERE TOPIC_C IN
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_unread_status_t SELECT ID,VERSION,TOPIC_C,MESSAGE_C,USER_C,READ_C FROM $source.mfr_unread_status_t WHERE TOPIC_C IN
     (SELECT ID FROM $source.mfr_topic_t WHERE
       of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id'))
        OR
@@ -280,7 +277,7 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
     ")) {
       die ("ERROR: $target.mfr_unread_status_t :: $site_id ::: $t->error \n");
     }
-  if(!$t->query("INSERT IGNORE INTO $target.mfr_attachment_t SELECT ID+$msg_attach_plus, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, ATTACHMENT_ID, ATTACHMENT_URL, ATTACHMENT_NAME, ATTACHMENT_SIZE, ATTACHMENT_TYPE,
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_attachment_t SELECT ID, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, ATTACHMENT_ID, ATTACHMENT_URL, ATTACHMENT_NAME, ATTACHMENT_SIZE, ATTACHMENT_TYPE,
     m_surrogateKey, of_surrogateKey, pf_surrogateKey, t_surrogateKey, of_urrogateKey FROM $source.mfr_attachment_t WHERE m_surrogateKey IN
       (SELECT ID FROM $source.mfr_message_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id'))))
       OR m_surrogateKey IN
@@ -288,7 +285,7 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
       ")) {
     die ("ERROR1: $target.mfr_attachment_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT IGNORE INTO $target.mfr_attachment_t SELECT ID+$msg_attach_plus, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, ATTACHMENT_ID, ATTACHMENT_URL, ATTACHMENT_NAME, ATTACHMENT_SIZE, ATTACHMENT_TYPE,
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_attachment_t SELECT ID, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, ATTACHMENT_ID, ATTACHMENT_URL, ATTACHMENT_NAME, ATTACHMENT_SIZE, ATTACHMENT_TYPE,
     m_surrogateKey, of_surrogateKey, pf_surrogateKey, t_surrogateKey, of_urrogateKey FROM $source.mfr_attachment_t WHERE t_surrogateKey IN
       (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id')))
       OR  t_surrogateKey IN
@@ -297,10 +294,10 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
     die ("ERROR2: $target.mfr_attachment_t :: $site_id ::: $t->error \n");
   }
   // These mappings are in CMN_TYPE_T table
-  if(!$t->query("UPDATE $target.mfr_area_t SET TYPE_UUID='eb7f5ca0-0abb-463f-002d-123d2350a9ee' WHERE TYPE_UUID='05c87d73-4219-4c19-811c-3d980dc5470a' AND ID > $msg_area_plus")) {
+  if(!$t->query("UPDATE $target.mfr_area_t SET TYPE_UUID='eb7f5ca0-0abb-463f-002d-123d2350a9ee' WHERE TYPE_UUID='05c87d73-4219-4c19-811c-3d980dc5470a' AND ID > 1000")) {
     die ("ERROR: attempt update $target.mfr_area_t  :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("UPDATE $target.mfr_area_t SET TYPE_UUID='c4acc6ac-7c85-446a-00b4-fcc244ac2dcd' WHERE TYPE_UUID='acbe9cdd-9265-4c59-bc19-c0bf4c4ee0de' AND ID > $msg_area_plus")) {
+  if(!$t->query("UPDATE $target.mfr_area_t SET TYPE_UUID='c4acc6ac-7c85-446a-00b4-fcc244ac2dcd' WHERE TYPE_UUID='acbe9cdd-9265-4c59-bc19-c0bf4c4ee0de' AND ID > 1000")) {
     die ("ERROR: attempt update $target.mfr_area_t  :: $site_id ::: $t->error \n");
   }
   if(!$t->query("UPDATE $target.mfr_open_forum_t SET TYPE_UUID='eb7f5ca0-0abb-463f-002d-123d2350a9ee' WHERE TYPE_UUID='05c87d73-4219-4c19-811c-3d980dc5470a' AND ID > $msg_of_plus")) {
@@ -532,40 +529,32 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   $gb_ev_plus = $new_values['gb_grading_event_t'];
 
   $t->query("SET foreign_key_checks = 0");
-  if(!$t->query("INSERT INTO $target.gb_gradebook_t SELECT ID+$gb_plus, version, GRADEBOOK_UID, NAME, SELECTED_GRADE_MAPPING_ID+$gb_map_plus, ASSIGNMENTS_DISPLAYED, COURSE_GRADE_DISPLAYED, ALL_ASSIGNMENTS_ENTERED, LOCKED,
-     GRADE_TYPE, CATEGORY_TYPE, IS_EQUAL_WEIGHT_CATS, IS_SCALED_EXTRA_CREDIT, DO_SHOW_MEAN, DO_SHOW_MEDIAN, DO_SHOW_MODE, DO_SHOW_RANK, DO_SHOW_ITEM_STATS, DO_SHOW_STATISTICS_CHART, TOTAL_POINTS_DISPLAYED,
-     COURSE_AVERAGE_DISPLAYED FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID = '$site_id' ")) {
+  if(!$t->query("INSERT INTO $target.gb_gradebook_t SELECT * FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID = '$site_id' ")) {
     die ("ERROR: $target.gb_gradebook_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.gb_grade_map_t SELECT ID+$gb_map_plus, OBJECT_TYPE_ID,VERSION,GRADEBOOK_ID+$gb_plus,GB_GRADING_SCALE_T FROM $source.gb_grade_map_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
+  if(!$t->query("INSERT INTO $target.gb_grade_map_t SELECT * FROM $source.gb_grade_map_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
     die ("ERROR: $target.gb_grade_map_t :: $site_id ::: $t->error \n");
   }
   $t->query("SET foreign_key_checks = 1");
-  if(!$t->query("INSERT INTO $target.gb_grade_to_percent_mapping_t SELECT GRADE_MAP_ID+$gb_map_plus, PERCENT, LETTER_GRADE FROM $source.gb_grade_to_percent_mapping_t WHERE GRADE_MAP_ID IN
+  if(!$t->query("INSERT INTO $target.gb_grade_to_percent_mapping_t SELECT * FROM $source.gb_grade_to_percent_mapping_t WHERE GRADE_MAP_ID IN
     (SELECT ID FROM $source.gb_grade_map_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id'))")) {
     die ("ERROR: $target.gb_grade_to_percent_mapping_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.gb_category_t SELECT ID+$gb_cat_plus, VERSION, GRADEBOOK_ID+$gb_plus, `NAME`, WEIGHT, DROP_LOWEST, REMOVED, IS_EXTRA_CREDIT, IS_EQUAL_WEIGHT_ASSNS, IS_UNWEIGHTED, CATEGORY_ORDER, 
-    ENFORCE_POINT_WEIGHTING, DROP_HIGHEST, KEEP_HIGHEST FROM $source.gb_category_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
+  if(!$t->query("INSERT INTO $target.gb_category_t SELECT * FROM $source.gb_category_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
     die ("ERROR: $target.gb_category_t :: $site_id ::: $t->error \n");
   }
 
-  if(!$t->query("INSERT INTO $target.gb_gradable_object_t SELECT ID+$gb_obj_plus, OBJECT_TYPE_ID, VERSION, GRADEBOOK_ID+$gb_plus, `NAME`, REMOVED,  POINTS_POSSIBLE, DUE_DATE, NOT_COUNTED, EXTERNALLY_MAINTAINED,
-    EXTERNAL_STUDENT_LINK, EXTERNAL_INSTRUCTOR_LINK, EXTERNAL_ID+$samp_ass_plus, EXTERNAL_APP_NAME, RELEASED, CATEGORY_ID+$gb_cat_plus, UNGRADED, IS_EXTRA_CREDIT, ASSIGNMENT_WEIGHTING, IS_NULL_ZERO, SORT_ORDER, HIDE_IN_ALL_GRADES_TABLE
-    FROM $source.gb_gradable_object_t WHERE EXTERNAL_APP_NAME='Tests & Quizzes' AND GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
+  if(!$t->query("INSERT INTO $target.gb_gradable_object_t SELECT * FROM $source.gb_gradable_object_t WHERE EXTERNAL_APP_NAME='Tests & Quizzes' AND GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
       die ("ERROR3: $target.gb_gradable_object_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.gb_gradable_object_t SELECT ID+$gb_obj_plus, OBJECT_TYPE_ID, VERSION, GRADEBOOK_ID+$gb_plus, `NAME`, REMOVED,  POINTS_POSSIBLE, DUE_DATE, NOT_COUNTED, EXTERNALLY_MAINTAINED,
-    EXTERNAL_STUDENT_LINK, EXTERNAL_INSTRUCTOR_LINK, EXTERNAL_ID, EXTERNAL_APP_NAME, RELEASED, CATEGORY_ID+$gb_cat_plus, UNGRADED, IS_EXTRA_CREDIT, ASSIGNMENT_WEIGHTING, IS_NULL_ZERO, SORT_ORDER, HIDE_IN_ALL_GRADES_TABLE
-    FROM $source.gb_gradable_object_t WHERE (EXTERNAL_APP_NAME != 'Tests & Quizzes' OR EXTERNAL_APP_NAME IS NULL) AND GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
+  if(!$t->query("INSERT INTO $target.gb_gradable_object_t SELECT * FROM $source.gb_gradable_object_t WHERE (EXTERNAL_APP_NAME != 'Tests & Quizzes' OR EXTERNAL_APP_NAME IS NULL) AND GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
       die ("ERROR4: $target.gb_gradable_object_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.gb_grade_record_t SELECT ID+$gb_rec_plus, OBJECT_TYPE_ID, VERSION, GRADABLE_OBJECT_ID+$gb_obj_plus, STUDENT_ID, GRADER_ID, DATE_RECORDED, POINTS_EARNED,
-    ENTERED_GRADE, IS_EXCLUDED_FROM_GRADE, USER_ENTERED_GRADE FROM $source.gb_grade_record_t WHERE GRADABLE_OBJECT_ID IN
+  if(!$t->query("INSERT INTO $target.gb_grade_record_t SELECT * FROM $source.gb_grade_record_t WHERE GRADABLE_OBJECT_ID IN
     (SELECT ID FROM $source.gb_gradable_object_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id'))")) {
       die ("ERROR: $target.gb_grade_record_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.gb_grading_event_t SELECT ID+$gb_ev_plus, GRADABLE_OBJECT_ID+$gb_obj_plus, GRADER_ID, STUDENT_ID, DATE_GRADED, GRADE FROM $source.gb_grading_event_t WHERE GRADABLE_OBJECT_ID IN
+  if(!$t->query("INSERT INTO $target.gb_grading_event_t SELECT * FROM $source.gb_grading_event_t WHERE GRADABLE_OBJECT_ID IN
     (SELECT ID FROM $source.gb_gradable_object_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id'))")) {
       die ("ERROR: $target.gb_grading_event_t :: $site_id ::: $t->error \n");
   }
@@ -575,15 +564,13 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   $syl_data_plus = $new_values['sakai_syllabus_data'];
   $syl_attach_plus = $new_values['sakai_syllabus_attach'];
 
-  if(!$t->query("INSERT INTO $target.sakai_syllabus_item SELECT ID+$syl_item_plus, lockId, userId, contextId, redirectURL, openInNewWindow FROM $source.sakai_syllabus_item WHERE contextId='$site_id'")) {
+  if(!$t->query("INSERT INTO $target.sakai_syllabus_item SELECT * FROM $source.sakai_syllabus_item WHERE contextId='$site_id'")) {
     die ("ERROR: $target.sakai_syllabus_item :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.sakai_syllabus_data SELECT ID+$syl_data_plus, lockId, asset, 0, title, xview, status, emailNotification, surrogateKey+$syl_item_plus, position_c,
-     START_DATE, END_DATE, LINK_CALENDAR, CALENDAR_EVENT_ID_START, CALENDAR_EVENT_ID_END FROM $source.sakai_syllabus_data WHERE surrogateKey IN (SELECT ID FROM $source.sakai_syllabus_item WHERE contextId='$site_id') ")) {
+  if(!$t->query("INSERT INTO $target.sakai_syllabus_data SELECT * FROM $source.sakai_syllabus_data WHERE surrogateKey IN (SELECT ID FROM $source.sakai_syllabus_item WHERE contextId='$site_id') ")) {
     die ("ERROR: $target.sakai_syllabus_data  :: $site_id ::: $t->error \n"); 
   }
-  if(!$t->query("INSERT INTO $target.sakai_syllabus_attach SELECT syllabusAttachId+$syl_attach_plus, lockId, attachmentId, syllabusAttachName, syllabusAttachSize, syllabusAttachType, createdBy,
-      syllabusAttachUrl, lastModifiedBy, syllabusId+$syl_data_plus FROM $source.sakai_syllabus_attach WHERE syllabusId IN 
+  if(!$t->query("INSERT INTO $target.sakai_syllabus_attach SELECT * FROM $source.sakai_syllabus_attach WHERE syllabusId IN 
       (SELECT ID FROM $source.sakai_syllabus_data WHERE surrogateKey IN (SELECT ID FROM $source.sakai_syllabus_item WHERE contextId='$site_id') )")) {
     die ("ERROR: $target.sakai_syllabus_attach  :: $site_id ::: $t->error \n"); 
   }
@@ -592,4 +579,4 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   print "COMPLETE: $site_id \n";
   sleep(15);
 }
-
+}
