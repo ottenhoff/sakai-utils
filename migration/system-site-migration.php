@@ -190,6 +190,9 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   $msg_unread_plus = $new_values['mfr_unread_status_t'];
   $msg_attach_plus = $new_values['mfr_attachment_t'];
 
+  if(!$t->query("INSERT IGNORE INTO $target.cmn_type_t SELECT * FROM $source.cmn_type_t WHERE UUID IN (SELECT TYPE_UUID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id')")) {
+      die ("ERROR: $target.mfr_area_t :: $site_id ::: $t->error \n");
+  }
   if(!$t->query("INSERT IGNORE INTO $target.mfr_area_t SELECT ID, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, CONTEXT_ID, `NAME`, HIDDEN, TYPE_UUID, ENABLED, LOCKED,
     MODERATED, SENDEMAILOUT, AUTO_MARK_THREADS_READ, AVAILABILITY_RESTRICTED, AVAILABILITY, OPEN_DATE, CLOSE_DATE, POST_FIRST, SEND_TO_EMAIL
     FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id'")) {
@@ -293,30 +296,8 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
     ")) {
     die ("ERROR2: $target.mfr_attachment_t :: $site_id ::: $t->error \n");
   }
-  // These mappings are in CMN_TYPE_T table
-  if(!$t->query("UPDATE $target.mfr_area_t SET TYPE_UUID='eb7f5ca0-0abb-463f-002d-123d2350a9ee' WHERE TYPE_UUID='05c87d73-4219-4c19-811c-3d980dc5470a' AND ID > 1000")) {
-    die ("ERROR: attempt update $target.mfr_area_t  :: $site_id ::: $t->error \n");
-  }
-  if(!$t->query("UPDATE $target.mfr_area_t SET TYPE_UUID='c4acc6ac-7c85-446a-00b4-fcc244ac2dcd' WHERE TYPE_UUID='acbe9cdd-9265-4c59-bc19-c0bf4c4ee0de' AND ID > 1000")) {
-    die ("ERROR: attempt update $target.mfr_area_t  :: $site_id ::: $t->error \n");
-  }
-  if(!$t->query("UPDATE $target.mfr_open_forum_t SET TYPE_UUID='eb7f5ca0-0abb-463f-002d-123d2350a9ee' WHERE TYPE_UUID='05c87d73-4219-4c19-811c-3d980dc5470a' AND ID > $msg_of_plus")) {
-    die ("ERROR: attempt update $target.mfr_open_forum_t  :: $site_id ::: $t->error \n");
-  }
-  if(!$t->query("UPDATE $target.mfr_private_forum_t SET TYPE_UUID='c4acc6ac-7c85-446a-00b4-fcc244ac2dcd' WHERE TYPE_UUID='acbe9cdd-9265-4c59-bc19-c0bf4c4ee0de' AND ID > $msg_pf_plus")) {
-    die ("ERROR: attempt update $target.mfr_private_forum_t  :: $site_id ::: $t->error \n");
-  }
-  if(!$t->query("UPDATE $target.mfr_topic_t SET TYPE_UUID='eb7f5ca0-0abb-463f-002d-123d2350a9ee' WHERE TYPE_UUID='05c87d73-4219-4c19-811c-3d980dc5470a' AND ID > $msg_topic_plus")) {
-    die ("ERROR1: attempt update $target.mfr_topic_t  :: $site_id ::: $t->error \n");
-  }
-  if(!$t->query("UPDATE $target.mfr_topic_t SET TYPE_UUID='c4acc6ac-7c85-446a-00b4-fcc244ac2dcd' WHERE TYPE_UUID='acbe9cdd-9265-4c59-bc19-c0bf4c4ee0de' AND ID >  $msg_topic_plus")) {
-    die ("ERROR2: attempt update $target.mfr_topic_t  :: $site_id ::: $t->error \n");
-  }
-  if(!$t->query("UPDATE $target.mfr_topic_t SET TYPE_UUID='1f228bcb-dbf3-48f2-000e-5aefa2cff61b' WHERE TYPE_UUID='969bb960-7169-4b07-9dd3-e416713f8d6a' AND ID >  $msg_topic_plus")) {
-    die ("ERROR3: attempt update $target.mfr_topic_t  :: $site_id ::: $t->error \n");
-  }
 
-  // SAmigo
+  // Samigo
   $sam_authz_plus = $new_values['sam_authzdata_t'];
   $sam_ass_plus = $new_values['sam_assessmentbase_t'];
   $sam_ass_met_plus = $new_values['sam_assessmetadata_t'];
