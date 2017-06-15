@@ -82,8 +82,8 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
         print "Could not find function $row2->FUNCTION_NAME :: $site_id \n";
       }
     }
+    */
   }
-  */
 
   // Third do assignments
   if ($res3 = $t->query("SELECT * FROM $source.assignment_assignment WHERE CONTEXT='$site_id' ")) {
@@ -98,16 +98,16 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
 
     if (count($assignments) > 0) {
       $a_sql = "'" . implode("','", $assignments) . "'";
-      if(!$t->query("INSERT INTO $target.assignment_assignment SELECT * FROM $source.assignment_assignment WHERE ASSIGNMENT_ID IN ($a_sql) ")) {
+      if(!$t->query("INSERT IGNORE INTO $target.assignment_assignment SELECT * FROM $source.assignment_assignment WHERE ASSIGNMENT_ID IN ($a_sql) ")) {
         die ("ERROR: $target.assignment_assignment :: $site_id ::: $t->error \n");
       }
-      if(!$t->query("INSERT INTO $target.assignment_submission SELECT SUBMISSION_ID,CONTEXT,XML,SUBMITTER_ID,SUBMIT_TIME,SUBMITTED,GRADED FROM $source.assignment_submission WHERE CONTEXT IN ($a_sql) ")) {
+      if(!$t->query("INSERT IGNORE INTO $target.assignment_submission SELECT SUBMISSION_ID,CONTEXT,XML,SUBMITTER_ID,SUBMIT_TIME,SUBMITTED,GRADED FROM $source.assignment_submission WHERE CONTEXT IN ($a_sql) ")) {
         die ("ERROR: $target.assignment_submission :: $site_id ::: $t->error \n");
       }
     }
     if (count($contents) > 0) {
       $c_sql = "'" . implode("','", $contents) . "'";
-      if(!$t->query("INSERT INTO $target.assignment_content SELECT * FROM $source.assignment_content WHERE CONTENT_ID IN ($c_sql) ")) {
+      if(!$t->query("INSERT IGNORE INTO $target.assignment_content SELECT * FROM $source.assignment_content WHERE CONTENT_ID IN ($c_sql) ")) {
         die ("ERROR: $target.assignment_content :: $site_id ::: $t->error \n");
       }
     }
@@ -133,10 +133,10 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   }
 
   // Fifth the calendars
-  if(!$t->query("INSERT INTO $target.calendar_calendar SELECT * FROM $source.calendar_calendar WHERE CALENDAR_ID = '/calendar/calendar/$site_id/main' ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.calendar_calendar SELECT * FROM $source.calendar_calendar WHERE CALENDAR_ID = '/calendar/calendar/$site_id/main' ")) {
     die ("ERROR: $target.calendar_calendar :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.calendar_event SELECT * FROM $source.calendar_event WHERE CALENDAR_ID = '/calendar/calendar/$site_id/main' ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.calendar_event SELECT * FROM $source.calendar_event WHERE CALENDAR_ID = '/calendar/calendar/$site_id/main' ")) {
     die ("ERROR: $target.calendar_event :: $site_id ::: $t->error \n");
   }
 
@@ -190,42 +190,42 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   $msg_unread_plus = $new_values['mfr_unread_status_t'];
   $msg_attach_plus = $new_values['mfr_attachment_t'];
 
-  if(!$t->query("INSERT INTO $target.mfr_area_t SELECT ID, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, CONTEXT_ID, `NAME`, HIDDEN, TYPE_UUID, ENABLED, LOCKED,
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_area_t SELECT ID, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, CONTEXT_ID, `NAME`, HIDDEN, TYPE_UUID, ENABLED, LOCKED,
     MODERATED, SENDEMAILOUT, AUTO_MARK_THREADS_READ, AVAILABILITY_RESTRICTED, AVAILABILITY, OPEN_DATE, CLOSE_DATE, POST_FIRST, SEND_TO_EMAIL
     FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id'")) {
       die ("ERROR: $target.mfr_area_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_open_forum_t SELECT ID, FORUM_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, DEFAULTASSIGNNAME, TITLE, SHORT_DESCRIPTION, EXTENDED_DESCRIPTION,
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_open_forum_t SELECT ID, FORUM_DTYPE, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, DEFAULTASSIGNNAME, TITLE, SHORT_DESCRIPTION, EXTENDED_DESCRIPTION,
     TYPE_UUID, SORT_INDEX, LOCKED, DRAFT,surrogateKey,MODERATED,AUTO_MARK_THREADS_READ,AVAILABILITY_RESTRICTED,AVAILABILITY,OPEN_DATE,CLOSE_DATE,POST_FIRST
     FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ")) {
       die ("ERROR: $target.mfr_open_forum_t :: $site_id ::: $t->error \n");
     }
-  if(!$t->query("INSERT INTO $target.mfr_private_forum_t SELECT ID, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, TITLE, SHORT_DESCRIPTION, EXTENDED_DESCRIPTION,
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_private_forum_t SELECT ID, VERSION, UUID, CREATED, CREATED_BY, MODIFIED, MODIFIED_BY, TITLE, SHORT_DESCRIPTION, EXTENDED_DESCRIPTION,
     TYPE_UUID, SORT_INDEX, OWNER, AUTO_FORWARD, AUTO_FORWARD_EMAIL, PREVIEW_PANE_ENABLED, surrogateKey
     FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ")) {
       die ("ERROR: $target.mfr_open_forum_t :: $site_id ::: $t->error \n");
     }
-  if(!$t->query("INSERT INTO $target.mfr_topic_t SELECT * FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_topic_t SELECT * FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ")) {
       die ("ERROR: $target.mfr_topic_t :: open_forums :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_topic_t SELECT * FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_topic_t SELECT * FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ")) {
       die ("ERROR2: $target.mfr_topic_t :: private_forums :: $site_id ::: $t->error \n");
     }
   $t->query("SET foreign_key_checks = 0");
-  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO IS NULL AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO IS NULL AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
       die ("ERROR1: $target.mfr_message_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO IS NULL AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO IS NULL AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
       die ("ERROR2: $target.mfr_message_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO > 0 AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO > 0 AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
       die ("ERROR3: $target.mfr_message_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO > 0 AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_message_t SELECT * FROM $source.mfr_message_t WHERE IN_REPLY_TO > 0 AND surrogateKey IN (SELECT ID FROM $source.mfr_topic_t WHERE pf_surrogateKey IN (SELECT ID FROM $source.mfr_private_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ) ")) {
       die ("ERROR4: $target.mfr_message_t :: $site_id ::: $t->error \n");
   }
   $t->query("SET foreign_key_checks = 1");
-  if(!$t->query("INSERT INTO $target.mfr_permission_level_t SELECT * FROM $source.mfr_permission_level_t WHERE ID IN (
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_permission_level_t SELECT * FROM $source.mfr_permission_level_t WHERE ID IN (
     SELECT PERMISSION_LEVEL FROM $source.mfr_membership_item_t WHERE
       a_surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id')
        OR
@@ -238,15 +238,15 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
     ")) {
       die ("ERROR: $target.mfr_permission_level_t :: $site_id ::: $t->error \n");
     }
-  if(!$t->query("INSERT INTO $target.mfr_membership_item_t SELECT ID,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL,a_surrogateKey, t_surrogateKey, of_surrogateKey
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_membership_item_t SELECT ID,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL,a_surrogateKey, t_surrogateKey, of_surrogateKey
     FROM $source.mfr_membership_item_t WHERE a_surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id')")) {
       die ("ERROR1: $target.mfr_membership_item_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_membership_item_t SELECT ID,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL,a_surrogateKey, t_surrogateKey, of_surrogateKey
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_membership_item_t SELECT ID,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL,a_surrogateKey, t_surrogateKey, of_surrogateKey
     FROM $source.mfr_membership_item_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id') ) ")) {
       die ("ERROR2: $target.mfr_membership_item_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.mfr_membership_item_t SELECT ID,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL,a_surrogateKey, t_surrogateKey, of_surrogateKey
+  if(!$t->query("INSERT IGNORE INTO $target.mfr_membership_item_t SELECT ID,VERSION,UUID,CREATED,CREATED_BY,MODIFIED,MODIFIED_BY,`NAME`,`TYPE`,PERMISSION_LEVEL_NAME,PERMISSION_LEVEL,a_surrogateKey, t_surrogateKey, of_surrogateKey
     FROM $source.mfr_membership_item_t WHERE t_surrogateKey IN
         (SELECT ID FROM $source.mfr_topic_t WHERE of_surrogateKey IN (SELECT ID FROM $source.mfr_open_forum_t WHERE surrogateKey IN (SELECT ID FROM $source.mfr_area_t WHERE CONTEXT_ID='$site_id')))
         OR
@@ -374,67 +374,51 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   }
 
   if (count($unpub) > 0) {
-    if(!$t->query("INSERT INTO $target.sam_authzdata_t SELECT id+$sam_authz_plus, lockId, AGENTID, FUNCTIONID,QUALIFIERID+$sam_ass_plus,EFFECTIVEDATE,EXPIRATIONDATE,LASTMODIFIEDBY,LASTMODIFIEDDATE,ISEXPLICIT
-      FROM $source.sam_authzdata_t WHERE AGENTID='$site_id' AND FUNCTIONID NOT LIKE '%PUBLISHED%' ")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_authzdata_t SELECT * FROM $source.sam_authzdata_t WHERE AGENTID='$site_id' AND FUNCTIONID NOT LIKE '%PUBLISHED%' ")) {
         die ("ERROR: $target.sam_authzdata_t :: $site_id ::: $t->error \n");
       }
 
-    if(!$t->query("INSERT INTO $target.sam_assessmentbase_t SELECT ID+$sam_ass_plus, isTemplate,PARENTID,TITLE,DESCRIPTION,COMMENTS,TYPEID,INSTRUCTORNOTIFICATION,TESTEENOTIFICATION, MULTIPARTALLOWED,
-      STATUS, CREATEDBY, CREATEDDATE,LASTMODIFIEDBY,LASTMODIFIEDDATE,ASSESSMENTTEMPLATEID FROM $source.sam_assessmentbase_t WHERE ID IN (" . implode(',', $unpub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_assessmentbase_t SELECT * FROM $source.sam_assessmentbase_t WHERE ID IN (" . implode(',', $unpub) . ")")) {
         die ("ERROR: $target.sam_assessmentbase_t :: $site_id ::: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_assessaccesscontrol_t SELECT ASSESSMENTID+$sam_ass_plus,SUBMISSIONSALLOWED,UNLIMITEDSUBMISSIONS,SUBMISSIONSSAVED,ASSESSMENTFORMAT,BOOKMARKINGITEM,TIMELIMIT,
-      TIMEDASSESSMENT,RETRYALLOWED,LATEHANDLING,STARTDATE,DUEDATE,SCOREDATE,FEEDBACKDATE,RETRACTDATE,AUTOSUBMIT,ITEMNAVIGATION,ITEMNUMBERING,DISPLAYSCORE,SUBMISSIONMESSAGE,RELEASETO,USERNAME,PASSWORD,
-      FINALPAGEURL,MARKFORREVIEW FROM $source.sam_assessaccesscontrol_t WHERE ASSESSMENTID IN (" . implode(',', $unpub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_assessaccesscontrol_t SELECT * FROM $source.sam_assessaccesscontrol_t WHERE ASSESSMENTID IN (" . implode(',', $unpub) . ")")) {
         die ("ERROR: $target.sam_assessaccesscontrol_t :: $site_id ::: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_assessevaluation_t SELECT ASSESSMENTID+$sam_ass_plus,EVALUATIONCOMPONENTS,SCORINGTYPE,NUMERICMODELID,FIXEDTOTALSCORE,GRADEAVAILABLE,ISSTUDENTIDPUBLIC,
-      ANONYMOUSGRADING,AUTOSCORING,TOGRADEBOOK FROM $source.sam_assessevaluation_t WHERE ASSESSMENTID IN (" . implode(',', $unpub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_assessevaluation_t SELECT * FROM $source.sam_assessevaluation_t WHERE ASSESSMENTID IN (" . implode(',', $unpub) . ")")) {
         die ("ERROR: $target.sam_assessevaluation_t :: $site_id ::: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_assessfeedback_t SELECT ASSESSMENTID+$sam_ass_plus,FEEDBACKDELIVERY,FEEDBACKAUTHORING,EDITCOMPONENTS,SHOWQUESTIONTEXT,SHOWSTUDENTRESPONSE,SHOWCORRECTRESPONSE,
-      SHOWSTUDENTSCORE,SHOWSTUDENTQUESTIONSCORE,SHOWQUESTIONLEVELFEEDBACK,SHOWSELECTIONLEVELFEEDBACK,SHOWGRADERCOMMENTS,SHOWSTATISTICS,FEEDBACKCOMPONENTOPTION
-      FROM $source.sam_assessfeedback_t WHERE ASSESSMENTID IN (" . implode(',', $unpub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_assessfeedback_t SELECT * FROM $source.sam_assessfeedback_t WHERE ASSESSMENTID IN (" . implode(',', $unpub) . ")")) {
         die ("ERROR: $target.sam_assessfeedback_t :: $site_id ::: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_assessmetadata_t SELECT ASSESSMENTMETADATAID+$sam_ass_met_plus, ASSESSMENTID+$sam_ass_plus, LABEL, ENTRY
-      FROM $source.sam_assessmetadata_t WHERE ASSESSMENTID IN (" . implode(',', $unpub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_assessmetadata_t SELECT * FROM $source.sam_assessmetadata_t WHERE ASSESSMENTID IN (" . implode(',', $unpub) . ")")) {
         die ("ERROR: $target.sam_assessmetadata_t :: $site_id ::: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_section_t SELECT SECTIONID+$sam_sec_plus, ASSESSMENTID+$sam_ass_plus, DURATION, SEQUENCE, TITLE, DESCRIPTION, TYPEID, STATUS, CREATEDBY, CREATEDDATE,
-      LASTMODIFIEDBY, LASTMODIFIEDDATE FROM $source.sam_section_t WHERE ASSESSMENTID IN (" . implode(',', $unpub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_section_t SELECT * FROM $source.sam_section_t WHERE ASSESSMENTID IN (" . implode(',', $unpub) . ")")) {
         die ("ERROR: $target.sam_section_t :: $site_id ::: $t->error \n");
       }
 
-    if(!$t->query("INSERT INTO $target.sam_sectionmetadata_t SELECT SECTIONMETADATAID+$sam_sec_met_plus, SECTIONID+$sam_sec_plus, LABEL, ENTRY FROM $source.sam_sectionmetadata_t
+    if(!$t->query("INSERT IGNORE INTO $target.sam_sectionmetadata_t SELECT * FROM $source.sam_sectionmetadata_t
       WHERE SECTIONID IN (" . implode(',', $sec) . ")")) {
         die ("ERROR: $target.sam_sectionmetadata_t :: $site_id :: $t->error \n");
       }
     if (count($item) > 0) {
-      if(!$t->query("INSERT INTO $target.sam_item_t SELECT ITEMID+$sam_item_plus, SECTIONID+$sam_sec_plus, ITEMIDSTRING+$sam_item_plus, SEQUENCE, DURATION, TRIESALLOWED, INSTRUCTION,
-        `DESCRIPTION`, TYPEID, GRADE, SCORE, HINT, HASRATIONALE, STATUS, CREATEDBY, CREATEDDATE, LASTMODIFIEDBY, LASTMODIFIEDDATE, DISCOUNT, PARTIAL_CREDIT_FLAG,
-        MIN_SCORE, SCORE_DISPLAY_FLAG, ANSWER_OPTIONS_RICH_COUNT, ANSWER_OPTIONS_SIMPLE_OR_RICH FROM $source.sam_item_t WHERE SECTIONID IN (" . implode(',', $sec) . ")")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_item_t SELECT * FROM $source.sam_item_t WHERE SECTIONID IN (" . implode(',', $sec) . ")")) {
           die ("ERROR: $target.sam_item_t :: $site_id :: $t->error \n");
         }
-      if(!$t->query("INSERT INTO $target.sam_itemfeedback_t SELECT ITEMFEEDBACKID+$sam_item_feed_plus, ITEMID+$sam_item_plus, TYPEID, TEXT
-        FROM $source.sam_itemfeedback_t WHERE ITEMID IN (" . implode(',', $item) . ")")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_itemfeedback_t SELECT * FROM $source.sam_itemfeedback_t WHERE ITEMID IN (" . implode(',', $item) . ")")) {
           die ("ERROR: $target.sam_itemfeedback_t :: $site_id :: $t->error \n");
         }
-      if(!$t->query("INSERT INTO $target.sam_itemmetadata_t SELECT ITEMMETADATAID+$sam_item_meta_plus, ITEMID+$sam_item_plus, LABEL, ENTRY
-        FROM $source.sam_itemmetadata_t WHERE ITEMID IN (" . implode(',', $item) . ")")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_itemmetadata_t SELECT * FROM $source.sam_itemmetadata_t WHERE ITEMID IN (" . implode(',', $item) . ")")) {
           die ("ERROR: $target.sam_itemmetadata_t :: $site_id :: $t->error \n");
         }
-      if(!$t->query("INSERT INTO $target.sam_itemtext_t SELECT ITEMTEXTID+$sam_item_text_plus, ITEMID+$sam_item_plus, SEQUENCE, TEXT, REQUIRED_OPTIONS_COUNT
-        FROM $source.sam_itemtext_t WHERE ITEMID IN (" . implode(',', $item) . ")")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_itemtext_t SELECT * FROM $source.sam_itemtext_t WHERE ITEMID IN (" . implode(',', $item) . ")")) {
           die ("ERROR: $target.sam_itemtext_t :: $site_id :: $t->error \n");
         }
 
-      if(!$t->query("INSERT INTO $target.sam_answer_t SELECT ANSWERID+$sam_ans_plus, ITEMTEXTID+$sam_item_text_plus, ITEMID+$sam_item_plus, TEXT, SEQUENCE, LABEL, ISCORRECT, GRADE, SCORE, DISCOUNT, PARTIAL_CREDIT
-        FROM $source.sam_answer_t WHERE ITEMID IN (" . implode(',', $item) . ")")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_answer_t SELECT * FROM $source.sam_answer_t WHERE ITEMID IN (" . implode(',', $item) . ")")) {
           die ("ERROR: $target.sam_answer_t :: $site_id :: $t->error \n");
         }
-      if(!$t->query("INSERT INTO $target.sam_answerfeedback_t SELECT ANSWERFEEDBACKID+$sam_ans_feed_plus, ANSWERID+$sam_ans_plus, TYPEID, TEXT 
-        FROM $source.sam_answerfeedback_t WHERE ANSWERID IN (SELECT ANSWERID FROM $source.sam_answer_t WHERE ITEMID IN (" . implode(',', $item) . ") )")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_answerfeedback_t SELECT * FROM $source.sam_answerfeedback_t WHERE ANSWERID IN (SELECT ANSWERID FROM $source.sam_answer_t WHERE ITEMID IN (" . implode(',', $item) . ") )")) {
           die ("ERROR: $target.sam_answerfeedback_t :: $site_id :: $t->error \n");
         }
     }
@@ -442,80 +426,60 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
 
   // PUBLISHED ASSESSMENTS
   if (count($pub) > 0) {
-    if(!$t->query("INSERT INTO $target.sam_authzdata_t SELECT id+$sam_authz_plus, lockId, AGENTID, FUNCTIONID,QUALIFIERID+$samp_ass_plus,EFFECTIVEDATE,EXPIRATIONDATE,LASTMODIFIEDBY,LASTMODIFIEDDATE,ISEXPLICIT
-      FROM $source.sam_authzdata_t WHERE AGENTID='$site_id' AND FUNCTIONID LIKE '%PUBLISHED%' ")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_authzdata_t SELECT * FROM $source.sam_authzdata_t WHERE AGENTID='$site_id' AND FUNCTIONID LIKE '%PUBLISHED%' ")) {
         die ("ERROR2: $target.sam_authzdata_t :: $site_id ::: $t->error \n");
       }
 
-    if(!$t->query("INSERT INTO $target.sam_publishedassessment_t SELECT ID+$samp_ass_plus,TITLE,ASSESSMENTID+$sam_ass_plus,DESCRIPTION,COMMENTS,TYPEID,INSTRUCTORNOTIFICATION,TESTEENOTIFICATION, MULTIPARTALLOWED,
-      STATUS, CREATEDBY, CREATEDDATE,LASTMODIFIEDBY,LASTMODIFIEDDATE,LASTNEEDRESUBMITDATE FROM $source.sam_publishedassessment_t WHERE ID IN (" . implode(',', $pub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_publishedassessment_t SELECT * FROM $source.sam_publishedassessment_t WHERE ID IN (" . implode(',', $pub) . ")")) {
         die ("ERROR: $target.sam_publishedassessment_t :: $site_id ::: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_publishedaccesscontrol_t SELECT ASSESSMENTID+$samp_ass_plus,UNLIMITEDSUBMISSIONS,SUBMISSIONSALLOWED,SUBMISSIONSSAVED,ASSESSMENTFORMAT,BOOKMARKINGITEM,TIMELIMIT,
-      TIMEDASSESSMENT,RETRYALLOWED,LATEHANDLING,STARTDATE,DUEDATE,SCOREDATE,FEEDBACKDATE,RETRACTDATE,AUTOSUBMIT,ITEMNAVIGATION,ITEMNUMBERING,SUBMISSIONMESSAGE,RELEASETO,USERNAME,PASSWORD,
-      FINALPAGEURL,MARKFORREVIEW,DISPLAYSCORE FROM $source.sam_publishedaccesscontrol_t WHERE ASSESSMENTID IN (" . implode(',', $pub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_publishedaccesscontrol_t SELECT * FROM $source.sam_publishedaccesscontrol_t WHERE ASSESSMENTID IN (" . implode(',', $pub) . ")")) {
         die ("ERROR: $target.sam_publishedaccesscontrol_t :: $site_id ::: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_publishedevaluation_t SELECT ASSESSMENTID+$samp_ass_plus,EVALUATIONCOMPONENTS,SCORINGTYPE,NUMERICMODELID,FIXEDTOTALSCORE,GRADEAVAILABLE,ISSTUDENTIDPUBLIC,
-      ANONYMOUSGRADING,AUTOSCORING,TOGRADEBOOK FROM $source.sam_publishedevaluation_t WHERE ASSESSMENTID IN (" . implode(',', $pub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_publishedevaluation_t SELECT * FROM $source.sam_publishedevaluation_t WHERE ASSESSMENTID IN (" . implode(',', $pub) . ")")) {
         die ("ERROR: $target.sam_publishedevaluation_t :: $site_id ::: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_publishedfeedback_t SELECT ASSESSMENTID+$samp_ass_plus,FEEDBACKDELIVERY,FEEDBACKAUTHORING,EDITCOMPONENTS,SHOWQUESTIONTEXT,SHOWSTUDENTRESPONSE,SHOWCORRECTRESPONSE,
-      SHOWSTUDENTSCORE,SHOWSTUDENTQUESTIONSCORE,SHOWQUESTIONLEVELFEEDBACK,SHOWSELECTIONLEVELFEEDBACK,SHOWGRADERCOMMENTS,SHOWSTATISTICS,FEEDBACKCOMPONENTOPTION
-      FROM $source.sam_publishedfeedback_t WHERE ASSESSMENTID IN (" . implode(',', $pub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_publishedfeedback_t SELECT * FROM $source.sam_publishedfeedback_t WHERE ASSESSMENTID IN (" . implode(',', $pub) . ")")) {
         die ("ERROR: $target.sam_publishedfeedback_t :: $site_id ::: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_publishedmetadata_t SELECT ASSESSMENTMETADATAID+$samp_ass_met_plus, ASSESSMENTID+$samp_ass_plus, LABEL, ENTRY
-      FROM $source.sam_publishedmetadata_t WHERE ASSESSMENTID IN (" . implode(',', $pub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_publishedmetadata_t SELECT * FROM $source.sam_publishedmetadata_t WHERE ASSESSMENTID IN (" . implode(',', $pub) . ")")) {
         die ("ERROR: $target.sam_publishedmetadata_t :: $site_id ::: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_publishedsection_t SELECT SECTIONID+$samp_sec_plus, ASSESSMENTID+$samp_ass_plus, DURATION, SEQUENCE, TITLE, DESCRIPTION, TYPEID, STATUS, CREATEDBY, CREATEDDATE,
-      LASTMODIFIEDBY, LASTMODIFIEDDATE FROM $source.sam_publishedsection_t WHERE ASSESSMENTID IN (" . implode(',', $pub) . ")")) {
+    if(!$t->query("INSERT IGNORE INTO $target.sam_publishedsection_t SELECT * FROM $source.sam_publishedsection_t WHERE ASSESSMENTID IN (" . implode(',', $pub) . ")")) {
         die ("ERROR: $target.sam_publishedsection_t :: $site_id ::: $t->error \n");
       }
 
-    if(!$t->query("INSERT INTO $target.sam_publishedsectionmetadata_t SELECT PUBLISHEDSECTIONMETADATAID+$samp_sec_met_plus, SECTIONID+$samp_sec_plus, LABEL, ENTRY FROM $source.sam_publishedsectionmetadata_t
+    if(!$t->query("INSERT IGNORE INTO $target.sam_publishedsectionmetadata_t SELECT * FROM $source.sam_publishedsectionmetadata_t
       WHERE SECTIONID IN (" . implode(',', $p_sec) . ")")) {
         die ("ERROR: $target.sam_publishedsectionmetadata_t :: $site_id :: $t->error \n");
       }
     if (count($p_item) > 0) {
-      if(!$t->query("INSERT INTO $target.sam_publisheditem_t SELECT ITEMID+$samp_item_plus, SECTIONID+$samp_sec_plus, ITEMIDSTRING+$samp_item_plus, SEQUENCE, DURATION, TRIESALLOWED, INSTRUCTION,
-        `DESCRIPTION`, TYPEID, GRADE, SCORE, HINT, HASRATIONALE, STATUS, CREATEDBY, CREATEDDATE, LASTMODIFIEDBY, LASTMODIFIEDDATE, DISCOUNT, PARTIAL_CREDIT_FLAG,
-        MIN_SCORE, SCORE_DISPLAY_FLAG, ANSWER_OPTIONS_RICH_COUNT, ANSWER_OPTIONS_SIMPLE_OR_RICH FROM $source.sam_publisheditem_t WHERE SECTIONID IN (" . implode(',', $p_sec) . ")")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_publisheditem_t SELECT * FROM $source.sam_publisheditem_t WHERE SECTIONID IN (" . implode(',', $p_sec) . ")")) {
           die ("ERROR: $target.sam_publisheditem_t :: $site_id :: $t->error \n");
         }
-      if(!$t->query("INSERT INTO $target.sam_publisheditemfeedback_t SELECT ITEMFEEDBACKID+$samp_item_feed_plus, ITEMID+$samp_item_plus, TYPEID, TEXT
-        FROM $source.sam_publisheditemfeedback_t WHERE ITEMID IN (" . implode(',', $p_item) . ")")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_publisheditemfeedback_t SELECT * FROM $source.sam_publisheditemfeedback_t WHERE ITEMID IN (" . implode(',', $p_item) . ")")) {
           die ("ERROR: $target.sam_publisheditemfeedback_t :: $site_id :: $t->error \n");
         }
-      if(!$t->query("INSERT INTO $target.sam_publisheditemmetadata_t SELECT ITEMMETADATAID+$samp_item_meta_plus, ITEMID+$samp_item_plus, LABEL, ENTRY
-        FROM $source.sam_publisheditemmetadata_t WHERE ITEMID IN (" . implode(',', $p_item) . ")")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_publisheditemmetadata_t SELECT * FROM $source.sam_publisheditemmetadata_t WHERE ITEMID IN (" . implode(',', $p_item) . ")")) {
           die ("ERROR: $target.sam_publisheditemmetadata_t :: $site_id :: $t->error \n");
         }
-      if(!$t->query("INSERT INTO $target.sam_publisheditemtext_t SELECT ITEMTEXTID+$samp_item_text_plus, ITEMID+$samp_item_plus, SEQUENCE, TEXT, REQUIRED_OPTIONS_COUNT
-        FROM $source.sam_publisheditemtext_t WHERE ITEMID IN (" . implode(',', $p_item) . ")")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_publisheditemtext_t SELECT * FROM $source.sam_publisheditemtext_t WHERE ITEMID IN (" . implode(',', $p_item) . ")")) {
           die ("ERROR: $target.sam_publisheditemtext_t :: $site_id :: $t->error \n");
         }
 
-      if(!$t->query("INSERT INTO $target.sam_publishedanswer_t SELECT ANSWERID+$samp_ans_plus, ITEMTEXTID+$samp_item_text_plus, ITEMID+$samp_item_plus, TEXT, SEQUENCE, LABEL, ISCORRECT, GRADE, SCORE, DISCOUNT, PARTIAL_CREDIT
-        FROM $source.sam_publishedanswer_t WHERE ITEMID IN (" . implode(',', $p_item) . ")")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_publishedanswer_t SELECT * FROM $source.sam_publishedanswer_t WHERE ITEMID IN (" . implode(',', $p_item) . ")")) {
           die ("ERROR: $target.sam_publishedanswer_t :: $site_id :: $t->error \n");
         }
-      if(!$t->query("INSERT INTO $target.sam_publishedanswerfeedback_t SELECT ANSWERFEEDBACKID+$samp_ans_feed_plus, ANSWERID+$samp_ans_plus, TYPEID, TEXT
-        FROM $source.sam_publishedanswerfeedback_t WHERE ANSWERID IN (SELECT ANSWERID FROM $source.sam_publishedanswer_t WHERE ITEMID IN (" . implode(',', $p_item) . ") )")) {
+      if(!$t->query("INSERT IGNORE INTO $target.sam_publishedanswerfeedback_t SELECT * FROM $source.sam_publishedanswerfeedback_t WHERE ANSWERID IN (SELECT ANSWERID FROM $source.sam_publishedanswer_t WHERE ITEMID IN (" . implode(',', $p_item) . ") )")) {
           die ("ERROR: $target.sam_publishedanswerfeedback_t :: $site_id :: $t->error \n");
         }
     }
 
     // Samigo grading
-    if(!$t->query("INSERT INTO $target.sam_assessmentgrading_t SELECT ASSESSMENTGRADINGID+$sam_ag_plus, PUBLISHEDASSESSMENTID+$samp_ass_plus, AGENTID, SUBMITTEDDATE, ISLATE, FORGRADE,
-      TOTALAUTOSCORE, TOTALOVERRIDESCORE, FINALSCORE, COMMENTS, GRADEDBY, GRADEDDATE, STATUS, ATTEMPTDATE, TIMEELAPSED, ISAUTOSUBMITTED, LASTVISITEDPART, LASTVISITEDQUESTION, HASAUTOSUBMISSIONRUN
-      FROM $source.sam_assessmentgrading_t WHERE PUBLISHEDASSESSMENTID IN (" . implode(',', $pub) . ")")) { 
+    if(!$t->query("INSERT IGNORE INTO $target.sam_assessmentgrading_t SELECT * FROM $source.sam_assessmentgrading_t WHERE PUBLISHEDASSESSMENTID IN (" . implode(',', $pub) . ")")) { 
         die ("ERROR: $target.sam_assessmentgrading_t :: $site_id :: $t->error \n");
       }
-    if(!$t->query("INSERT INTO $target.sam_itemgrading_t SELECT ITEMGRADINGID+$sam_ig_plus, ASSESSMENTGRADINGID+$sam_ag_plus, PUBLISHEDITEMID+$samp_item_plus, PUBLISHEDITEMTEXTID+$samp_item_text_plus,
-      AGENTID,SUBMITTEDDATE,PUBLISHEDANSWERID+$samp_ans_plus,RATIONALE,ANSWERTEXT,AUTOSCORE,OVERRIDESCORE,COMMENTS,GRADEDBY,GRADEDDATE,REVIEW,ATTEMPTSREMAINING,LASTDURATION,ISCORRECT
-      FROM $source.sam_itemgrading_t WHERE ASSESSMENTGRADINGID IN (SELECT ASSESSMENTGRADINGID FROM $source.sam_assessmentgrading_t WHERE PUBLISHEDASSESSMENTID IN (" . implode(',', $pub) . ") )")) { 
+    if(!$t->query("INSERT IGNORE INTO $target.sam_itemgrading_t SELECT * FROM $source.sam_itemgrading_t WHERE ASSESSMENTGRADINGID IN (SELECT ASSESSMENTGRADINGID FROM $source.sam_assessmentgrading_t WHERE PUBLISHEDASSESSMENTID IN (" . implode(',', $pub) . ") )")) { 
         die ("ERROR: $target.sam_itemgrading_t :: $site_id :: $t->error \n");
       }
   }
@@ -529,32 +493,32 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   $gb_ev_plus = $new_values['gb_grading_event_t'];
 
   $t->query("SET foreign_key_checks = 0");
-  if(!$t->query("INSERT INTO $target.gb_gradebook_t SELECT * FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID = '$site_id' ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.gb_gradebook_t SELECT * FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID = '$site_id' ")) {
     die ("ERROR: $target.gb_gradebook_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.gb_grade_map_t SELECT * FROM $source.gb_grade_map_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
+  if(!$t->query("INSERT IGNORE INTO $target.gb_grade_map_t SELECT * FROM $source.gb_grade_map_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
     die ("ERROR: $target.gb_grade_map_t :: $site_id ::: $t->error \n");
   }
   $t->query("SET foreign_key_checks = 1");
-  if(!$t->query("INSERT INTO $target.gb_grade_to_percent_mapping_t SELECT * FROM $source.gb_grade_to_percent_mapping_t WHERE GRADE_MAP_ID IN
+  if(!$t->query("INSERT IGNORE INTO $target.gb_grade_to_percent_mapping_t SELECT * FROM $source.gb_grade_to_percent_mapping_t WHERE GRADE_MAP_ID IN
     (SELECT ID FROM $source.gb_grade_map_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id'))")) {
     die ("ERROR: $target.gb_grade_to_percent_mapping_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.gb_category_t SELECT * FROM $source.gb_category_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
+  if(!$t->query("INSERT IGNORE INTO $target.gb_category_t SELECT * FROM $source.gb_category_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
     die ("ERROR: $target.gb_category_t :: $site_id ::: $t->error \n");
   }
 
-  if(!$t->query("INSERT INTO $target.gb_gradable_object_t SELECT * FROM $source.gb_gradable_object_t WHERE EXTERNAL_APP_NAME='Tests & Quizzes' AND GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
+  if(!$t->query("INSERT IGNORE INTO $target.gb_gradable_object_t SELECT * FROM $source.gb_gradable_object_t WHERE EXTERNAL_APP_NAME='Tests & Quizzes' AND GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
       die ("ERROR3: $target.gb_gradable_object_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.gb_gradable_object_t SELECT * FROM $source.gb_gradable_object_t WHERE (EXTERNAL_APP_NAME != 'Tests & Quizzes' OR EXTERNAL_APP_NAME IS NULL) AND GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
+  if(!$t->query("INSERT IGNORE INTO $target.gb_gradable_object_t SELECT * FROM $source.gb_gradable_object_t WHERE (EXTERNAL_APP_NAME != 'Tests & Quizzes' OR EXTERNAL_APP_NAME IS NULL) AND GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id')")) {
       die ("ERROR4: $target.gb_gradable_object_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.gb_grade_record_t SELECT * FROM $source.gb_grade_record_t WHERE GRADABLE_OBJECT_ID IN
+  if(!$t->query("INSERT IGNORE INTO $target.gb_grade_record_t SELECT * FROM $source.gb_grade_record_t WHERE GRADABLE_OBJECT_ID IN
     (SELECT ID FROM $source.gb_gradable_object_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id'))")) {
       die ("ERROR: $target.gb_grade_record_t :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.gb_grading_event_t SELECT * FROM $source.gb_grading_event_t WHERE GRADABLE_OBJECT_ID IN
+  if(!$t->query("INSERT IGNORE INTO $target.gb_grading_event_t SELECT * FROM $source.gb_grading_event_t WHERE GRADABLE_OBJECT_ID IN
     (SELECT ID FROM $source.gb_gradable_object_t WHERE GRADEBOOK_ID IN (SELECT ID FROM $source.gb_gradebook_t WHERE GRADEBOOK_UID='$site_id'))")) {
       die ("ERROR: $target.gb_grading_event_t :: $site_id ::: $t->error \n");
   }
@@ -564,13 +528,13 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   $syl_data_plus = $new_values['sakai_syllabus_data'];
   $syl_attach_plus = $new_values['sakai_syllabus_attach'];
 
-  if(!$t->query("INSERT INTO $target.sakai_syllabus_item SELECT * FROM $source.sakai_syllabus_item WHERE contextId='$site_id'")) {
+  if(!$t->query("INSERT IGNORE INTO $target.sakai_syllabus_item SELECT * FROM $source.sakai_syllabus_item WHERE contextId='$site_id'")) {
     die ("ERROR: $target.sakai_syllabus_item :: $site_id ::: $t->error \n");
   }
-  if(!$t->query("INSERT INTO $target.sakai_syllabus_data SELECT * FROM $source.sakai_syllabus_data WHERE surrogateKey IN (SELECT ID FROM $source.sakai_syllabus_item WHERE contextId='$site_id') ")) {
+  if(!$t->query("INSERT IGNORE INTO $target.sakai_syllabus_data SELECT * FROM $source.sakai_syllabus_data WHERE surrogateKey IN (SELECT ID FROM $source.sakai_syllabus_item WHERE contextId='$site_id') ")) {
     die ("ERROR: $target.sakai_syllabus_data  :: $site_id ::: $t->error \n"); 
   }
-  if(!$t->query("INSERT INTO $target.sakai_syllabus_attach SELECT * FROM $source.sakai_syllabus_attach WHERE syllabusId IN 
+  if(!$t->query("INSERT IGNORE INTO $target.sakai_syllabus_attach SELECT * FROM $source.sakai_syllabus_attach WHERE syllabusId IN 
       (SELECT ID FROM $source.sakai_syllabus_data WHERE surrogateKey IN (SELECT ID FROM $source.sakai_syllabus_item WHERE contextId='$site_id') )")) {
     die ("ERROR: $target.sakai_syllabus_attach  :: $site_id ::: $t->error \n"); 
   }
@@ -578,5 +542,4 @@ while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
   //echo("INSERT INTO $target.$table SELECT * FROM $source.$table WHERE SITE_ID='$site_id'");
   print "COMPLETE: $site_id \n";
   sleep(15);
-}
 }
