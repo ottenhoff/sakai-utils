@@ -1,10 +1,10 @@
 <?php
 
-$source = 'point_lamp_migration';
-$target = 'sakai_point_dev';
+$source = 'sakai_lamp_prod';
+$target = 'sakai_point_prod';
 
-$s = new mysqli('lsdevaurora-cluster.cluster-ctj7ow5gksfj.us-east-1.rds.amazonaws.com', 'point', 'temp123!', $source);
-$t = new mysqli('lsdevaurora-cluster.cluster-ctj7ow5gksfj.us-east-1.rds.amazonaws.com', 'sakai_point', '94XKi7NNd5b0', $target);
+$s = new mysqli('lsaurora03.cluster-ctj7ow5gksfj.us-east-1.rds.amazonaws.com', 'sakai_lamp', '6u8EdhL4UiW5', $source);
+$t = new mysqli('lsaurora03.cluster-ctj7ow5gksfj.us-east-1.rds.amazonaws.com', 'sakai_point', '61M80sKncNqs', $target);
 if (!$s || !$t) die('Bad mysql connection');
 
 $sourceFunctions = $targetFunctions = array();
@@ -27,6 +27,7 @@ $good_tables = array(
 'gb_gradebook_t',
 'gb_grading_event_t',
 'gb_spreadsheet_t',
+'lesson_builder_ch_status',
 'lesson_builder_comments',
 'lesson_builder_groups',
 'lesson_builder_items',
